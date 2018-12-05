@@ -102,7 +102,7 @@ infected_sum = nrow(experiment@meta.data[which(experiment@meta.data$infection_st
 for (cell_type in cell_types){
   x = nrow(experimentw@meta.data[which(experiment@meta.data$cell_type==cell_type & experiment@meta.data$infection_status=='CONTROL'),])
   x_percent = round((x*100/control_sum),1)
-  y = nrow(experiment_1_raw@meta.data[which(experiment_1_raw@meta.data$cell_type==cell_type & experiment_1_raw@meta.data$infection_status=='INFECTED'),])
+  y = nrow(experiment@meta.data[which(experiment@meta.data$cell_type==cell_type & experiment@meta.data$infection_status=='INFECTED'),])
   y_percent = round((y*100/infected_sum),1)
   control<-c(control,x)
   infected<-c(infected,y)
@@ -119,4 +119,4 @@ colnames(df)=c("CONTROL(n)","INFECTED(n)","CONTROL(%)","INFECTED(%)")
 rownames(df)=c(cell_types,"SUM")
 
 #save the data structure
-saveRDS(experiment_1_raw,data_file)
+saveRDS(experiment,data_file)
