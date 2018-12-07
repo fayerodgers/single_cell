@@ -80,9 +80,9 @@ dev.off()
 #STOP HERE! Decide how many CCs to include in the analysis.
 ################
 
-experiment <- AlignSubspace(experiment, reduction.type = "cca", grouping.var = "infection_status", dims.align = 1:30)
-experiment <- FindClusters(experiment, reduction.type = "cca.aligned", resolution = 1, dims.use = 1:30) #Might want to play with the resolution.
-experiment <- RunTSNE(experiment, reduction.use = "cca.aligned", dims.use = 1:30, do.fast = T)
+experiment <- AlignSubspace(experiment, reduction.type = "cca", grouping.var = "infection_status", dims.align = 1:35)
+experiment <- FindClusters(experiment, reduction.type = "cca.aligned", resolution = 1, dims.use = 1:35) #Might want to play with the resolution.
+experiment <- RunTSNE(experiment, reduction.use = "cca.aligned", dims.use = 1:35, do.fast = T)
 pdf(paste0(out,'tsne_infection_status_raw.pdf'))
 p2 <- TSNEPlot(experiment, do.return = T, pt.size = 1.5, group.by = "infection_status")
 p2
@@ -100,8 +100,8 @@ dev.off()
 #Stop here! Examine the clusters to identify cell types
 #rename cells according to identified clusters
 
-new.ident<-c("ENTEROCYTE_A","ENTEROCYTE_B","ENTEROCYTE_C","TA_A","ENTEROCYTE_D","GOBLET","TA_B","ENTEROCYTE_E","ENTEROCYTE_F","TUFT")#This will change depending on the clusters identified.
-for (i in 0:9){ experiment<-RenameIdent(experiment,old.ident.name = i,new.ident.name = new.ident[i+1])}
+new.ident<-c("ENT_A","ENT_B","ENT_C","TA_A","GOBLET","ENT_D","TA_B","ENT_E","ENT_F","ENT_G","ENT_H","ENT_I","ENT_J","ENT_K","ENT_L","TA_C","TA_D","ENT_M","TUFT","ENTEROENDOCRINE")#This will change depending on the clusters identified.
+for (i in 0:19){ experiment<-RenameIdent(experiment,old.ident.name = i,new.ident.name = new.ident[i+1])}
 #Stash the new identities as 'cell_type'
 experiment<-StashIdent(experiment,save.name="cell_type")
 pdf(paste0(out,'named_tsne_clusters_raw.pdf'))
@@ -111,17 +111,17 @@ dev.off()
 
 #Plots of nGene and percent.mito
 pdf(paste0(out,'ngene_mito_by_mouse_raw.pdf'))
-p6<-VlnPlot(experiment,features.plot=c('nGene','percent.mito'),group.by='orig.ident',point.size.use = 0.5, cols.use = BlackAndWhite())
+p6<-VlnPlot(experiment,features.plot=c('nGene','percent.mito'),group.by='orig.ident',point.size.use = 0.5, cols.use = BlackAndWhite(),size.x.use=5)
 p6
 dev.off()
 
 pdf(paste0(out,'ngene_mito_by_cluster_raw.pdf'))
-p6<-VlnPlot(experiment,features.plot=c('nGene','percent.mito'),point.size.use = 0.5,do.sort=T,x.lab.rot = T, cols.use = BlackAndWhite())
+p6<-VlnPlot(experiment,features.plot=c('nGene','percent.mito'),point.size.use = 0.5,do.sort=T,x.lab.rot = T, cols.use = BlackAndWhite(),size.x.use=10)
 p6
 dev.off()
 
 #Get cell numbers for each cluster
-cell_types<-c("ENTEROCYTE_A","ENTEROCYTE_B","ENTEROCYTE_C","ENTEROCYTE_D","ENTEROCYTE_E","ENTEROCYTE_F","TA_A","TA_B","GOBLET","TUFT") 
+cell_types<-sort(new.ident)
 control<-c()
 infected<-c()
 control_percent<-c()
