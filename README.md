@@ -43,17 +43,22 @@ Retrieve cellranger metrics for these samples.
 ```
 regex="cellranger$"
 grep CELLRANGER data_locations.txt | cut -f 1,2 | while read -r sample path; do 
+
  version=$(echo $path | grep -o 'cellranger[0-9]*_count' | grep -o 'cellranger[0-9]*')
  annotation=$(echo $path | grep -o mm10\.*$)
+ 
  if [[ $version =~ $regex ]]; then
   version="cellranger131"
  fi
+ 
  if [[ ! -e ${version}.txt ]]; then      #because we want the headers first time round
   echo -n "sample_id,transcriptome," > ${version}.txt
   iget ${path}/metrics_summary.csv - | head -n 1 >> ${version}.txt 
  fi 
+ 
  echo -n $sample","$annotation"," >> ${version}.txt
  iget ${path}/metrics_summary.csv - | tail -n -1 >> ${version}.txt
+ 
 done
 ```
 
