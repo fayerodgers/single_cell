@@ -53,7 +53,11 @@ grep CELLRANGER data_locations.txt | cut -f 1,2 | while read -r sample path; do
  
  #pull down the HTML files
  
+ if [[ ! -d websummaries/${version} ]]; then
+  mkdir websummaries/${version}
+ fi
  
+ iget ${path}/web_summary.html websummaries/${version}/${sample}.html
  
  if [[ ! -e ${version}.txt ]]; then      #because we want the headers first time round
   echo -n "sample_id,transcriptome," > ${version}.txt
