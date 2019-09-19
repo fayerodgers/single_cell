@@ -9,6 +9,8 @@ CR <- merge(CR,meta_data,no.dups=TRUE)
 #make a new column for mouse_id-sample_id (for plotting)
 CR$mouse_id.sample_id <- paste0(CR$mouse_id,'-',CR$sample_id)
 
+write.table(CR,'cellranger_metadata.tsv',sep="\t")
+
 #select only samples that have been run with versions 2 AND 3.
 CR.2.3 <- CR[0,]
 for (i in unique(CR$sample_id)){
@@ -18,7 +20,6 @@ for (i in unique(CR$sample_id)){
   }
 }
 
-
 #plotting function
 get_dotplot<-function(data,x,y,fill,metric){
   g<-ggplot(data,aes(x,y, colour=fill)) +
@@ -27,20 +28,18 @@ get_dotplot<-function(data,x,y,fill,metric){
   return(g)
 }
 
-
-metrics<-c("Number_of_reads","Sequencing_Saturation" ,"Reads_Mapped_to_Genome", "Estimated_Number_of_Cells" , "Fraction_Reads_in_Cells" , "Mean_Reads_per_Cell" , "Median_Genes_per_Cell" , "Total_Genes_Detected" , "Median_UMI_Counts_per_Cell" )
+metrics<-c("Number_of_Reads","Sequencing_Saturation" ,"Reads_Mapped_to_Genome", "Estimated_Number_of_Cells" , "Fraction_Reads_in_Cells" , "Mean_Reads_per_Cell" , "Median_Genes_per_Cell" , "Total_Genes_Detected" , "Median_UMI_Counts_per_Cell" )
 
 for (metric in metrics){
   y<-eval(parse(text= paste0("CR.2.3$",metric)))
   plot <- get_dotplot(CR.2.3,CR.2.3$cellranger_versiom,y,CR.2.3$mouse_id.sample_id,metric)
-  assign()
+  assign(paste0(metric), plot)
+# print(plot)
+  pdf(paste0("QC_plots/",metric,".pdf") )
+  print(plot)
+  dev.off()
 }
 
-pdf('test.pdf')
-print(n_reads)
-dev.off()
 
-
-n_reads <- get_dotplot(CR.2.3,CR.2.3$cellranger_versiom,CR.2.3$Number_of_Reads,CR.2.3$mouse_id.sample_id)
 
 
