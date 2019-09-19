@@ -51,6 +51,10 @@ grep CELLRANGER data_locations.txt | cut -f 1,2 | while read -r sample path; do
   version="cellranger131"
  fi
  
+ #pull down the HTML files
+ 
+ 
+ 
  if [[ ! -e ${version}.txt ]]; then      #because we want the headers first time round
   echo -n "sample_id,transcriptome," > ${version}.txt
   iget ${path}/metrics_summary.csv - | head -n 1 >> ${version}.txt 
