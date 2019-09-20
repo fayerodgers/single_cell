@@ -51,13 +51,15 @@ grep CELLRANGER data_locations.txt | cut -f 1,2 | while read -r sample path; do
   version="cellranger131"
  fi
  
- #pull down the HTML files
+  #pull down the HTML files
  
- if [[ ! -d websummaries/${version} ]]; then
+ if [[ ! -d websummaries/${version} ]]; then   
   mkdir websummaries/${version}
  fi
  
- iget ${path}/web_summary.html websummaries/${version}/${sample}.html
+ iget ${path}/web_summary.html websummaries/${version}/${sample}.html   
+ 
+ #get the same data in CSV format
  
  if [[ ! -e ${version}.txt ]]; then      #because we want the headers first time round
   echo -n "sample_id,transcriptome," > ${version}.txt
@@ -67,7 +69,19 @@ grep CELLRANGER data_locations.txt | cut -f 1,2 | while read -r sample path; do
  echo -n $sample","$annotation"," >> ${version}.txt
  iget ${path}/metrics_summary.csv - | tail -n -1 >> ${version}.txt
  
+ #get the counts matrices
+ 
+ if [[ ! -d count_matrices/${version} ]]; then   
+  mkdir count_matrices/${version}
+ fi 
+ 
+ counts_dir=$(ils -r ${path} | grep 'filtered' | grep 'C' | sort | tail -n 1 | sed -e 's/C-//' | sed -e 's/\s//g')
+
+ iget -r ${counts_dir} count_matrices/${version}/${sample}
+ 
 done
 ```
 
-Combine these into a master file
+Metrics summaries are combined into a master file, cellranger_metrics.tsv.
+
+
