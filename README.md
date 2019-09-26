@@ -84,4 +84,14 @@ done
 
 Metrics summaries are combined into a master file, cellranger_metrics.tsv.
 
+```cellranger_metrics.R``` compares the samples that have been run with both cellranger v2.1.1 and cellranger v3.0.2. Plots in QC_plots.
+
+## Seurat 
+
+To run a standard analysis:
+
+```./basic_seurat.R --samples list.txt --metadata samples.txt --cellranger_version cellranger302 --results_directory dir```
+
+First run it like this with the default options, then look at the plots to decide on filtering and clustering parameters.
+
 
