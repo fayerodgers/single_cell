@@ -1,15 +1,15 @@
 library(ggplot2)
 
 setwd('/Users/fr7/git_repos/single_cell')
-CR <- read.table('cellranger_metrics.tsv', header = T)
-meta_data <- read.table('samples.txt',header=T)
+CR <- read.table('metadata/cellranger_metrics.tsv', header = T)
+meta_data <- read.table('metadata/samples.txt',header=T)
 
 #join cellranger table with meta data
 CR <- merge(CR,meta_data,no.dups=TRUE)
 #make a new column for mouse_id-sample_id (for plotting)
 CR$mouse_id.sample_id <- paste0(CR$mouse_id,'-',CR$sample_id)
 
-write.table(CR,'cellranger_metadata.tsv',sep="\t")
+write.table(CR,'metadata/cellranger_metadata.tsv',sep="\t")
 
 #select only samples that have been run with versions 2 AND 3.
 CR.2.3 <- CR[0,]
@@ -34,7 +34,6 @@ for (metric in metrics){
   y<-eval(parse(text= paste0("CR.2.3$",metric)))
   plot <- get_dotplot(CR.2.3,CR.2.3$cellranger_versiom,y,CR.2.3$mouse_id.sample_id,metric)
   assign(paste0(metric), plot)
-# print(plot)
   pdf(paste0("QC_plots/",metric,".pdf") )
   print(plot)
   dev.off()
