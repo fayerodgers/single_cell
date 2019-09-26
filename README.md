@@ -88,7 +88,7 @@ Metrics summaries are combined into a master file, cellranger_metrics.tsv.
 
 ## Seurat 
 
-To run a standard analysis:
+To run a standard analysis (eg):
 
 ```./basic_seurat.R --samples list.txt --metadata samples.txt --cellranger_version cellranger302 --results_directory dir```
 
