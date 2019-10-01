@@ -1,13 +1,4 @@
-#use_python("/Users/fr7/miniconda2/bin/python",required=TRUE)
-
 import("Seurat")
-#import("reticulate")
-#import("Matrix")
-#import("dplyr")
-#import("metap")
-#import("ggplot2")
-#import("cowplot")
-
 
 normalize_data<-function(sample,cellranger_version,meta_data,variable_features,ncells,nmito,nfeatures){
   data.dir = paste0("./count_matrices/",cellranger_version,"/",sample)
