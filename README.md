@@ -42,7 +42,7 @@ Retrieve cellranger metrics for these samples.
 
 ```
 regex="cellranger$"
-grep CELLRANGER data_locations.txt | cut -f 1,2 | while read -r sample path; do 
+grep CELLRANGER metadata/data_locations.txt | cut -f 1,2 | while read -r sample path; do 
 
  version=$(echo $path | grep -o 'cellranger[0-9]*_count' | grep -o 'cellranger[0-9]*')
  annotation=$(echo $path | grep -o mm10\.*$)
@@ -53,11 +53,15 @@ grep CELLRANGER data_locations.txt | cut -f 1,2 | while read -r sample path; do
  
   #pull down the HTML files
  
- if [[ ! -d websummaries/${version} ]]; then   
-  mkdir websummaries/${version}
+ if [[ ! -d websummaries/${annotation} ]]; then   
+  mkdir websummaries/${annotation}
  fi
  
- iget ${path}/web_summary.html websummaries/${version}/${sample}.html   
+ if [[ ! -d websummaries/${annotation}/${version} ]]; then   
+  mkdir websummaries/${annotation}/${version}
+ fi
+ 
+ iget ${path}/web_summary.html websummaries/${annotation}/${version}/${sample}.html   
  
  #get the same data in CSV format
  
@@ -71,13 +75,17 @@ grep CELLRANGER data_locations.txt | cut -f 1,2 | while read -r sample path; do
  
  #get the counts matrices
  
- if [[ ! -d count_matrices/${version} ]]; then   
-  mkdir count_matrices/${version}
+ if [[ ! -d count_matrices/${annotation} ]]; then   
+  mkdir count_matrices/${annotation}
+ fi 
+ 
+ if [[ ! -d count_matrices/${annotation}/${version} ]]; then   
+  mkdir count_matrices/${annotation}/${version}
  fi 
  
  counts_dir=$(ils -r ${path} | grep 'filtered' | grep 'C' | sort | tail -n 1 | sed -e 's/C-//' | sed -e 's/\s//g')
 
- iget -r -f ${counts_dir} count_matrices/${version}/${sample}
+ iget -r -f ${counts_dir} count_matrices/${annotation}/${version}/${sample}
  
 done
 ```
