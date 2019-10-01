@@ -77,7 +77,7 @@ grep CELLRANGER data_locations.txt | cut -f 1,2 | while read -r sample path; do
  
  counts_dir=$(ils -r ${path} | grep 'filtered' | grep 'C' | sort | tail -n 1 | sed -e 's/C-//' | sed -e 's/\s//g')
 
- iget -r ${counts_dir} count_matrices/${version}/${sample}
+ iget -r -f ${counts_dir} count_matrices/${version}/${sample}
  
 done
 ```
