@@ -32,6 +32,6 @@ sample_id	experiment	treatment	mouse_id	time	meta
 4672STDY8112976	4	control	mouse_29	72hpi	NA
 4672STDY8112977	4	control	mouse_30	72hpi	NA
 4672STDY8113070	4	infected	mouse_31	72hpi	NA
-4672STDY8112978	4	infected	mouse_32	72hpi	NA
-4672STDY8112979	4	infected	mouse_33	72hpi	NA
-4672STDY8112980	4	infected	mouse_34	72hpi	NA
+4672STDY8112979	4	infected	mouse_32	72hpi	NA
+4672STDY8112980	4	infected	mouse_33	72hpi	NA
+4672STDY8112981	4	infected	mouse_34	72hpi	NA
