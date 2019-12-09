@@ -1,6 +1,5 @@
 sample_id,transcriptome,Estimated Number of Cells,Mean Reads per Cell,Median Genes per Cell,Number of Reads,Valid Barcodes,Reads Mapped Confidently to Transcriptome,Reads Mapped Confidently to Exonic Regions,Reads Mapped Confidently to Intronic Regions,Reads Mapped Confidently to Intergenic Regions,Sequencing Saturation,Q30 Bases in Barcode,Q30 Bases in RNA Read,Q30 Bases in Sample Index,Q30 Bases in UMI,Fraction Reads in Cells,Total Genes Detected,Median UMI Counts per Cell
-4672STDY6814755,mm10,"4,632","79,620",730,"368,804,456",98.4%,68.6%,72.1%,8.2%,2.8%,95.8%,98.2%,81.6%,91.5%,98.3%,79.4%,"15,527","1,458"
-4672STDY6814756,mm10,"2,269","165,883",790,"376,389,244",98.4%,67.7%,71.1%,7.7%,3.1%,97.7%,98.6%,83.7%,91.1%,98.7%,79.5%,"15,183","1,600"
+4672STDY7140017,mm10,"1,061","357,120","2,617","378,905,345",98.6%,74.3%,76.7%,7.4%,4.5%,90.8%,98.1%,84.4%,95.9%,98.0%,74.6%,"16,122","11,216"
 4672STDY7140017,mm10,"1,061","357,120","2,617","378,905,345",98.6%,74.3%,76.7%,7.4%,4.5%,90.8%,98.1%,84.4%,95.9%,98.0%,74.6%,"16,122","11,216"
 4672STDY7140018,mm10,"1,252","304,633","1,820","381,401,272",98.5%,73.7%,76.1%,7.0%,5.1%,91.7%,98.2%,84.1%,96.3%,98.1%,71.8%,"16,091","7,697"
 4672STDY7140019,mm10,"1,504","253,434","2,382","381,164,850",98.5%,74.5%,77.0%,7.8%,3.7%,90.1%,98.2%,84.7%,96.0%,98.1%,79.2%,"15,989","9,614"
