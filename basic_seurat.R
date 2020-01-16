@@ -1,9 +1,12 @@
 #!/usr/bin/env Rscript
-m <- modules::use("~/git_repos/single_cell/SC.R")
-suppressPackageStartupMessages(library(argparse))
-suppressPackageStartupMessages(library(Seurat))
-suppressPackageStartupMessages(library(ggplot2))
-suppressPackageStartupMessages(library(cowplot))
+.libPaths("/nfs/users/nfs_f/fr7/anaconda2/envs/r_env/lib/R/library")
+m <- modules::use("./SC.R")
+library(argparse)
+library(Seurat)
+library(ggplot2)
+library(cowplot)
+library(future)
+
 
 parser <- ArgumentParser()
 parser$add_argument("--results_directory",help="directory for files to be written to")
@@ -21,13 +24,17 @@ parser$add_argument("--resolution",type="integer",help="Resolution for identifyi
 
 args <- parser$parse_args()
 
+#enable paralellisation
+#plan("multiprocess", workers = 4)
+#options(future.globals.maxSize = 9437184000)
+
 #for now
-args$cellranger_version<-'cellranger302'
-args$metadata<-'/Users/fr7/git_repos/single_cell/metadata/samples.txt'
-args$samples<-'/Users/fr7/git_repos/single_cell/experiment_4/samples_to_analyse.txt'
-args$results_directory<-'/Users/fr7/git_repos/single_cell/experiment_4'
-args$mito_cutoff<-0
-args$ncells_cutoff<-3
+#args$cellranger_version<-'cellranger302'
+#args$metadata<-'/Users/fr7/git_repos/single_cell/metadata/samples.txt'
+#args$samples<-'/Users/fr7/git_repos/single_cell/experiment_4/samples_to_analyse.txt'
+#args$results_directory<-'/Users/fr7/git_repos/single_cell/experiment_4'
+#args$mito_cutoff<-0
+#args$ncells_cutoff<-3
 
 evaluate<-function(text){
   x<-eval(parse(text=text))
@@ -55,30 +62,30 @@ seurat_objects<-lapply(samples,m$normalize_data,
                        args$annotation_version)
 #don't do this for now
 seurat_objects<-lapply(seurat_objects,m$run_pca,args$dimensions_to_assess)
-seurat_objects<-lapply(seurat_objects,m$do_clustering,args$dimensions_to_analyse,args$resolution)
+#seurat_objects<-lapply(seurat_objects,m$do_clustering,args$dimensions_to_analyse,args$resolution)
 QC_plots<-lapply(seurat_objects,m$QC_violins)
 #markers<-lapply(seurat_objects,m$find_all_markers)
 names(seurat_objects)<-samples
 
 #inspect each library and identify clusters to be removed
-clusters_to_remove<-read.table('/Users/fr7/git_repos/single_cell/experiment_4_mt_filter/clusters_to_remove.txt',header=T)
+#clusters_to_remove<-read.table('/Users/fr7/git_repos/single_cell/experiment_4_mt_filter/clusters_to_remove.txt',header=T)
 
-filtered_seurat_objects<-c()
+#filtered_seurat_objects<-c()
 
-seurat_objects<-lapply(seurat_objects,m$remove_mito_clusters,clusters_to_remove)
+#seurat_objects<-lapply(seurat_objects,m$remove_mito_clusters,clusters_to_remove)
 
 
 #Integrate datasets into one object
 combined<-m$integrate_datasets(seurat_objects,args$dimensions_to_assess)
 combined<-m$do_clustering(combined,args$dimensions_to_analyse,args$resolution)
+saveRDS(combined,paste0(args$results_directory,"/seurat_object.rds"))
 #make new slot for time~infection status
-combined[["time-status"]]<-paste0(combined$time,"-",combined$infection_status)
-p<-DimPlot(combined,reduction="umap",split.by = "time-status")
+combined[["time.status"]]<-paste0(combined$time,".",combined$infection_status)
+saveRDS(combined,paste0(args$results_directory,"/seurat_object.rds"))
+
+p<-DimPlot(combined,reduction="umap",split.by = "time.status")
 dim.plots<-m$plot_UMAPS(combined)
 markers<-FeaturePlot(combined, features = c("Aqp8","Krt20","Muc2","Chga","Lgr5","Dclk1","Cdk4","Il33","Ly6a"), min.cutoff="q9",pt.size = 0.1)
-
-#save data structure
-saveRDS(combined,paste0(args$results_directory,"/seurat_object.rds"))
 
 #Printing plots
 pdf(paste0(args$results_directory,"/elbowplot.pdf"))
