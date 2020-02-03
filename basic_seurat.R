@@ -1,12 +1,12 @@
 #!/usr/bin/env Rscript
-.libPaths("/nfs/users/nfs_f/fr7/anaconda2/envs/r_env/lib/R/library")
+#.libPaths("/nfs/users/nfs_f/fr7/anaconda2/envs/r_env/lib/R/library")
 m <- modules::use("./SC.R")
 library(argparse)
 library(Seurat)
 library(ggplot2)
 library(cowplot)
 library(future)
-
+library(gridExtra)
 
 parser <- ArgumentParser()
 parser$add_argument("--results_directory",help="directory for files to be written to")
@@ -29,12 +29,12 @@ args <- parser$parse_args()
 #options(future.globals.maxSize = 9437184000)
 
 #for now
-#args$cellranger_version<-'cellranger302'
-#args$metadata<-'/Users/fr7/git_repos/single_cell/metadata/samples.txt'
-#args$samples<-'/Users/fr7/git_repos/single_cell/experiment_4/samples_to_analyse.txt'
-#args$results_directory<-'/Users/fr7/git_repos/single_cell/experiment_4'
+args$cellranger_version<-'cellranger302'
+args$metadata<-'/Users/fr7/git_repos/single_cell/metadata/samples.txt'
+args$samples<-'/Users/fr7/git_repos/single_cell/experiment_4/samples_to_analyse.txt'
+args$results_directory<-'/Users/fr7/git_repos/single_cell/experiment_4'
 #args$mito_cutoff<-0
-#args$ncells_cutoff<-3
+args$ncells_cutoff<-10
 
 evaluate<-function(text){
   x<-eval(parse(text=text))
@@ -45,7 +45,7 @@ evaluate<-function(text){
 samples<-scan(args$samples,what=character())
 meta_data<-read.table(args$metadata,header=T)
 for (sample in samples){
-  dir.create(sample)
+  dir.create(file.path(args$results_directory,sample))
 }
 
 
@@ -60,32 +60,143 @@ seurat_objects<-lapply(samples,m$normalize_data,
                        args$mito_cutoff,
                        args$nfeatures_cutoff,
                        args$annotation_version)
-#don't do this for now
-seurat_objects<-lapply(seurat_objects,m$run_pca,args$dimensions_to_assess)
-#seurat_objects<-lapply(seurat_objects,m$do_clustering,args$dimensions_to_analyse,args$resolution)
-QC_plots<-lapply(seurat_objects,m$QC_violins)
-#markers<-lapply(seurat_objects,m$find_all_markers)
 names(seurat_objects)<-samples
 
-#inspect each library and identify clusters to be removed
-#clusters_to_remove<-read.table('/Users/fr7/git_repos/single_cell/experiment_4_mt_filter/clusters_to_remove.txt',header=T)
+#plots of variable features - check we capture the highly variable genes with 2000 features.
+for (i in names(seurat_objects)){
+  out_dir<-file.path(args$results_directory,i)
+  p<-m$variable_feature_plot(seurat_objects[[i]],out_dir)
+}
 
-#filtered_seurat_objects<-c()
 
-#seurat_objects<-lapply(seurat_objects,m$remove_mito_clusters,clusters_to_remove)
+#scale data and run pca
+seurat_objects<-lapply(seurat_objects,m$run_pca,args$dimensions_to_assess)
+
+#elbow plots to select no. of PCs to use in clustering
+elbow_plots<-c()
+for (i in names(seurat_objects)){
+  out_dir<-file.path(args$results_directory,i)
+  p<-m$elbow_plot(seurat_objects[[i]],args$dimensions_to_assess,"pca", out_dir)
+  elbow_plots<-c(elbow_plots,p)
+}
+
+#clustering
+seurat_objects<-lapply(seurat_objects,m$do_clustering,args$dimensions_to_analyse,5)
+
+markers_to_plot<-c("Aqp8","Krt20","Muc2","Chga","Lgr5","Dclk1","Cdk4")
+
+for (i in names(seurat_objects)){
+  out_dir<-file.path(args$results_directory,i)
+  p1<-m$QC_violins(seurat_objects[[i]], out_dir)
+  p2<-m$QC_scatters(seurat_objects[[i]],out_dir)
+  p3<-m$plot_UMAPS(seurat_objects[[i]],out_dir)
+  p4<-m$marker_violins(seurat_objects[[i]],out_dir,markers_to_plot)
+  markers<-m$find_all_markers(seurat_objects[[i]],out_dir)
+  saveRDS(seurat_objects[[i]],file.path(out_dir,"seurat_object_unfiltered.rds"))
+}
+
+#inspect each sample and select clusters to remove and doublet thresholds
+clusters_to_remove<-read.table(file.path(args$results_directory,"clusters_to_remove.txt"),header=TRUE)
+clusters_to_remove$cluster<-(clusters_to_remove$cluster)
+
+#doublet filtering: can not pass variables to subset, so have to do this bit manually.
+seurat_objects$`4672STDY8112878`<-subset(seurat_objects$`4672STDY8112878`,  subset = nCount_RNA < 90000)
+seurat_objects$`4672STDY8112879`<-subset(seurat_objects$`4672STDY8112879`,  subset = nCount_RNA < 80000)
+seurat_objects$`4672STDY8112880`<-subset(seurat_objects$`4672STDY8112880`,  subset = nCount_RNA < 100000)
+seurat_objects$`4672STDY8112881`<-subset(seurat_objects$`4672STDY8112881`,  subset = nCount_RNA < 125000)
+seurat_objects$`4672STDY8112882`<-subset(seurat_objects$`4672STDY8112882`,  subset = nCount_RNA < 80000)
+seurat_objects$`4672STDY8112883`<-subset(seurat_objects$`4672STDY8112883`,  subset = nCount_RNA < 100000)
+seurat_objects$`4672STDY8112884`<-subset(seurat_objects$`4672STDY8112884`,  subset = nCount_RNA < 80000)
+seurat_objects$`4672STDY8112885`<-subset(seurat_objects$`4672STDY8112885`,  subset = nCount_RNA < 100000)
+seurat_objects$`4672STDY8112974`<-subset(seurat_objects$`4672STDY8112974`,  subset = nCount_RNA < 100000)
+seurat_objects$`4672STDY8112975`<-subset(seurat_objects$`4672STDY8112975`,  subset = nCount_RNA < 100000)
+seurat_objects$`4672STDY8112976`<-subset(seurat_objects$`4672STDY8112976`,  subset = nCount_RNA < 100000)
+seurat_objects$`4672STDY8112977`<-subset(seurat_objects$`4672STDY8112977`,  subset = nCount_RNA < 100000)
+seurat_objects$`4672STDY8113070`<-subset(seurat_objects$`4672STDY8113070`,  subset = nCount_RNA < 100000)
+seurat_objects$`4672STDY8112979`<-subset(seurat_objects$`4672STDY8112979`,  subset = nCount_RNA < 100000)
+seurat_objects$`4672STDY8112981`<-subset(seurat_objects$`4672STDY8112981`,  subset = nCount_RNA < 80000)
+seurat_objects$`4672STDY8112980`<-subset(seurat_objects$`4672STDY8112980`,  subset = nCount_RNA < 125000)
+
+#rescale and find variable features
+for (i in names(seurat_objects)){
+  out_dir<-file.path(args$results_directory,i)
+  seurat_objects[[i]]<-NormalizeData(seurat_objects[[i]])
+  seurat_objects[[i]] <- FindVariableFeatures(seurat_objects[[i]], selection.method = "vst", nfeatures = 2000)
+  saveRDS(seurat_objects[[i]],file.path(out_dir,"seurat_object_postQC.rds"))
+}
+
+#integrate datasets
+
+filtered<-c()
+for (i in names(samples)){
+  temp<-readRDS(file.path(args$results_directory,i,"seurat_object_postQC.rds"))
+  filtered<-c(filtered,temp)
+}
+names(filtered)<-names(samples)
+
+combined<-m$integrate_datasets(seurat_objects,30)
+
+
+
+
+
+
+
+#replot and save objects post filtering
+for (i in names(seurat_objects)){
+  dir.create(file.path(args$results_directory,i,"postQC"))
+  out_dir<-file.path(args$results_directory,i,"postQC")
+  p1<-m$QC_violins(seurat_objects[[i]], out_dir)
+  p2<-m$QC_scatters(seurat_objects[[i]],out_dir)
+  p3<-m$plot_UMAPS(seurat_objects[[i]],out_dir)
+  p4<-m$marker_violins(seurat_objects[[i]],out_dir,markers_to_plot)
+#  markers<-m$find_all_markers(seurat_objects[[i]],out_dir)
+  saveRDS(seurat_objects[[i]],file.path(out_dir,"seurat_object_filtered.rds"))
+}
+
+
 
 
 #Integrate datasets into one object
 combined<-m$integrate_datasets(seurat_objects,args$dimensions_to_assess)
 combined<-m$do_clustering(combined,args$dimensions_to_analyse,args$resolution)
-saveRDS(combined,paste0(args$results_directory,"/seurat_object.rds"))
-#make new slot for time~infection status
-combined[["time.status"]]<-paste0(combined$time,".",combined$infection_status)
+
+
+DefaultAssay(combined) <- "RNA"
 saveRDS(combined,paste0(args$results_directory,"/seurat_object.rds"))
 
+#plots to select which clusters to remove
+mito.vln<-VlnPlot(combined, features = c("percent.mito"), cols=rep("red",length(levels(combined$seurat_clusters))), pt.size = 0,do.return=T)
+mito.vln<-mito.vln + theme(axis.text.x=element_text(size=8)) + labs(x="",y="% mitochondrial genes")
+nfeatures.vln<-VlnPlot(combined, features = c("nFeature_RNA"), cols=rep("forestgreen",length(levels(combined$seurat_clusters))), pt.size = 0,do.return=T)
+nfeatures.vln<-nfeatures.vln + theme(axis.text.x=element_text(size=8)) + labs(x="",y="Number of genes")
+counts.vln<-VlnPlot(combined, features = c("nCount_RNA"), cols=rep("tan1",length(levels(combined$seurat_clusters))), pt.size = 0,do.return=T)
+counts.vln<-counts.vln + theme(axis.text.x=element_text(size=8)) + labs(x="",y="Number of molecules")
 p<-DimPlot(combined,reduction="umap",split.by = "time.status")
 dim.plots<-m$plot_UMAPS(combined)
 markers<-FeaturePlot(combined, features = c("Aqp8","Krt20","Muc2","Chga","Lgr5","Dclk1","Cdk4","Il33","Ly6a"), min.cutoff="q9",pt.size = 0.1)
+
+combined <- subset(combined, subset = nCount_RNA < 150000)
+combined <- subset(combined, idents = c('1','6','11','29'), invert = TRUE)
+#re-do clustering
+elbow<-ElbowPlot(combined,ndims=args$dimensions_to_assess)
+args$dimensions_to_analyse <- 20
+combined <- NormalizeData(combined)
+combined <- FindVariableFeatures(combined, selection.method = "vst",nfeatures = 2000)
+combined <- m$run_pca(combined,20)
+combined <- RunUMAP(combined, reduction = "pca", dims = 1:20)
+combined <- FindNeighbors(combined, reduction = "pca", dims = 1:20)
+combined <- FindClusters(combined, resolution = 1)
+
+#
+
+print_plot<-function(dir,file_name,plot){
+  pdf(paste0(dir,file_name))
+  print(plot)
+  dev.off()
+}
+
+
 
 #Printing plots
 pdf(paste0(args$results_directory,"/elbowplot.pdf"))

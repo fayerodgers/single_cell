@@ -17,11 +17,24 @@ normalize_data<-function(sample,cellranger_version,meta_data,variable_features,n
   seurat_object[["cellranger_version"]]<-cellranger_version
   seurat_object[["percent.mito"]] <- PercentageFeatureSet(seurat_object, pattern = "^mt-")
   seurat_object[["time"]]<-as.character(meta_data[which(meta_data$sample_id == sample),'time']) 
+  seurat_object[["time.status"]]<-paste0(seurat_object$time,".",seurat_object$infection_status)
   seurat_object <- subset(seurat_object, subset.name = "percent.mito", high.threshold = nmito)
   seurat_object <- NormalizeData(seurat_object)
   seurat_object <- FindVariableFeatures(seurat_object, selection.method = "vst",nfeatures = variable_features)
   return(seurat_object)
 }
+
+variable_feature_plot<-function(seurat_object,out_dir){
+  top10 <- head(VariableFeatures(seurat_object), 10)
+  p1 <- VariableFeaturePlot(seurat_object)
+  p1 <- LabelPoints(p1, points = top10, repel = TRUE)
+  pdf(file.path(out_dir,"variable_features_plot.pdf"))
+  print(p1)
+  dev.off()
+  return(p1)
+}
+
+
 
 run_pca<-function(seurat_object,ndims){
   seurat_object <- ScaleData(seurat_object, verbose = FALSE)
@@ -29,9 +42,17 @@ run_pca<-function(seurat_object,ndims){
   return(seurat_object)
 }
 
+elbow_plot<-function(seurat_object,ndims,reduction,out_dir){
+  p1<-ElbowPlot(seurat_object,ndims = ndims,reduction = reduction)
+  pdf(file.path(out_dir,"elbowplot.pdf"))
+  print(p1)
+  dev.off()
+  return(p1)
+}
+
 integrate_datasets<-function(list_of_seurat_objects,ndims){        
-  anchors<-FindIntegrationAnchors(list_of_seurat_objects,dims=1:ndims)
-  combined<- IntegrateData(anchorset = anchors, dims = 1:ndims)
+  anchors<-FindIntegrationAnchors(list_of_seurat_objects)
+  combined<- IntegrateData(anchorset = anchors)
   DefaultAssay(combined) <- "integrated"
   combined <- ScaleData(combined, verbose = FALSE)
   combined <- RunPCA(combined, npcs = ndims, verbose = FALSE)
@@ -45,12 +66,15 @@ do_clustering<-function(combined,pcdimensions,resolution){
   return(combined)
 }
 
-plot_UMAPS<-function(seurat_object){
+plot_UMAPS<-function(seurat_object,out_dir){
   p1<-DimPlot(seurat_object,reduction="umap")
   p2<-DimPlot(seurat_object,reduction="umap",group.by = "orig.ident")
   p3<-FeaturePlot(seurat_object,features="percent.mito")
   p4<-FeaturePlot(seurat_object,features = "nFeature_RNA")
   all<-CombinePlots(plots=list(p1,p2,p3,p4),ncol=3)
+  pdf(file.path(out_dir,"/UMAPs.pdf"),30,30)
+  print(all)
+  dev.off()
   return(all)
 }
 
@@ -94,10 +118,10 @@ plot_proportions<-function(cluster,proportions_table,x){
   }
 
 set_colour_by_experiment<-function(seurat_object){
-  if (seurat_object$experiment == '1'){col="red"}
-  if (seurat_object$experiment == '2'){col="forestgreen"}
-  if (seurat_object$experiment == '3.1' | seurat_object$experiment == '3.2'){col="cornflowerblue"}
-  if (seurat_object$experiment == '4'){col="orange"}
+  if (unique(seurat_object$experiment) == '1'){col="red"}
+  if (unique(seurat_object$experiment) == '2'){col="forestgreen"}
+  if (unique(seurat_object$experiment == '3.1') | unique(seurat_object$experiment) == '3.2'){col="cornflowerblue"}
+  if (unique(seurat_object$experiment) == '4'){col="orange"}
   return(col)
 }
 
@@ -108,30 +132,66 @@ violin<-function(seurat_object,feature,group,ymax){
   return(vln)
 }
 
-scatter<-function(seurat_object,feature1,feature2,xmin,xmax,ymin,ymax){
-  col<-set_colour_by_experiment(seurat_object)
-  scatter_plot<-FeatureScatter(seurat_object,feature1=feature1,feature2 = feature2,cols=c(col))
-  scatter_plot<-scatter_plot+ xlim(xmin,xmax) + ylim(ymin,ymax)+ theme(text = element_text(size=30), axis.text.x=element_text(angle=0,hjust=0.5,size=25),axis.text.y=element_text(size=25),legend.position = "none") + labs(title=paste0(seurat_object$orig.ident)) 
+scatter<-function(seurat_object,feature1,feature2,xlim=NULL,ylim=NULL){
+  scatter_plot<-FeatureScatter(seurat_object,feature1=feature1,feature2 = feature2)
+  scatter_plot<-scatter_plot+ theme(text = element_text(size=30), axis.text.x=element_text(angle=0,hjust=0.5,size=25),axis.text.y=element_text(size=25),legend.position = "none") + labs(title=paste0(seurat_object$orig.ident)) 
+#  if (!is.null(xlim)) scatter_plot <- scatter_plot + xlim(xlim)
+#  if (!is.null(ylim)) scatter_plot <- scatter_plot + ylim(ylim)
   return(scatter_plot)
 }
 
-find_all_markers<-function(seurat_object){
-  markers<-FindAllMarkers(seurat_object,min.pct = 0.3,logfc.threshold = 0.75)
-  write.table(markers, file = paste0(levels(seurat_object$orig.ident),"/markers.txt"), sep ='\t', eol = '\n') 
+find_all_markers<-function(seurat_object,out_dir){
+  markers<-FindAllMarkers(seurat_object,min.pct = 0.3,logfc.threshold = 0.75,only.pos=TRUE)
+  write.table(markers, file = file.path(out_dir,'markers.txt'), sep ='\t', eol = '\n') 
   return(markers)
 }
 
-QC_violins<-function(seurat_object){
-  p<-VlnPlot(seurat_object,features=c("percent.mito","nFeature_RNA","nCount_RNA"),pt.size=0)
-  pdf(paste0(levels(seurat_object$orig.ident),"/plots.pdf"),12,6)
-  print(p)
+QC_violins<-function(seurat_object,out_dir){
+  p1<-VlnPlot(seurat_object,features=c("percent.mito","nFeature_RNA","nCount_RNA"),pt.size=0,ncol=1)
+  pdf(file.path(out_dir,"QC_violins.pdf"),20,10)
+  print(p1)
   dev.off()
-  return(p)
+  p2<-VlnPlot(seurat_object,features=c("percent.mito","nFeature_RNA","nCount_RNA"),pt.size=0,ncol=1,log=TRUE)
+  pdf(file.path(out_dir,"QC_violins_logy.pdf"),20,10)
+  print(p2)
+  dev.off()
+  p3<-VlnPlot(seurat_object,features=c("percent.mito","nFeature_RNA","nCount_RNA"),pt.size=0,ncol=1,sort=TRUE)
+  pdf(file.path(out_dir,"QC_violins_sorted.pdf"),20,10)
+  print(p3)
+  dev.off()
+}
+
+QC_scatters<-function(seurat_object,out_dir){
+  p1<-scatter(seurat_object,"nCount_RNA","nFeature_RNA")
+  p2<-scatter(seurat_object,"nCount_RNA","percent.mito")
+  p3<-scatter(seurat_object,"nFeature_RNA","percent.mito")
+  p4<-CombinePlots(plots = list(p1,p2,p3),ncol=3)
+  pdf(file.path(out_dir,"QC_scatters.pdf"),35,10)
+  print(p4)
+  dev.off()
+  return(p4)
+}
+
+marker_violins<-function(seurat_object,out_dir,markers){
+  p1<-VlnPlot(seurat_object,features=markers,pt.size=0,ncol=1)
+  pdf(file.path(out_dir,"violin_markers.pdf"),20,20)
+  print(p1)
+  dev.off()
 }
   
 remove_mito_clusters<-function(seurat_object,to_remove_table){
   sample<-levels(seurat_object$orig.ident)
-  to_remove<-to_remove_table[which(to_remove_table$sample == sample),'remove']
-  seurat_object<-subset(seurat_object, idents = to_remove, invert = TRUE)
+  to_remove<-to_remove_table[which(to_remove_table$sample == sample),'cluster']
+  try(seurat_object<-subset(seurat_object, idents = to_remove, invert = TRUE))
+  return(seurat_object)
+}
+
+counts_filter<-function(seurat_object,thresholds){
+  sample<-levels(seurat_object$orig.ident)
+  print(sample)
+  threshold<-thresholds[which(thresholds$sample == sample),'threshold']
+  print(threshold)
+  seurat_object
+  try(seurat_object<-subset(seurat_object, subset = nCount_RNA < threshold))
   return(seurat_object)
 }
