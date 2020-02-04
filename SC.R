@@ -3,6 +3,7 @@ import("ggplot2")
 import("utils")
 import("DESeq2")
 import("grDevices")
+import("cowplot")
 
 evaluate<-function(text){
   x<-eval(parse(text=text))
@@ -72,10 +73,18 @@ plot_UMAPS<-function(seurat_object,out_dir){
   p3<-FeaturePlot(seurat_object,features="percent.mito")
   p4<-FeaturePlot(seurat_object,features = "nFeature_RNA")
   all<-CombinePlots(plots=list(p1,p2,p3,p4),ncol=3)
-  pdf(file.path(out_dir,"/UMAPs.pdf"),30,30)
+  pdf(file.path(out_dir,"UMAPs.pdf"),30,30)
   print(all)
   dev.off()
   return(all)
+}
+
+split_UMAP<-function(seurat_object,out_dir){
+  p1<-DimPlot(seurat_object,reduction="umap",split.by="time.status")
+  pdf(file.path(out_dir,"split_UMAP.pdf"),30,30)
+  print(p1)
+  dev.off()
+  return(p1)
 }
 
 find_markers<-function(cluster,seurat_object,data_dir){
@@ -90,7 +99,7 @@ find_regulated_genes<-function(cluster,seurat_object,data_dir,timepoint){
   x<-subset(seurat_object, idents =  cluster) 
   Idents(x)<-"infection_status"
   DefaultAssay(seurat_object) <- "RNA"
-  infection.response<-try(FindMarkers(x,ident.1="control",ident.2="infected",print.bar=FALSE,test.use="DESeq2"),silent=TRUE)
+  infection.response<-try(FindMarkers(x,ident.1="control",ident.2="infected",print.bar=FALSE),silent=TRUE)
   if (is.data.frame(infection.response)){
    file<-paste0(data_dir,"/",timepoint,".cluster.",cluster,".regulated.tsv")
    write.table(infection.response, file = file, sep ='\t', eol = '\n') 
@@ -113,9 +122,31 @@ plot_proportions<-function(cluster,proportions_table,x){
     my_data<-proportions_table[which(proportions_table$cluster == cluster),]
     x<-my_data[,x]
     print(x)
-    plot<-get_dotplot(my_data,x,my_data$proportion,NULL,paste0("cluster.",cluster))
+    plot<-get_dotplot(my_data,x,my_data$n,NULL,paste0("cluster.",cluster))
     return(plot)
-  }
+}
+
+plot_cluster_distributions<-function(seurat_object,out_dir,meta_data){
+  clusters<-levels(seurat_object$seurat_clusters)
+  numbers<-as.data.frame(table(Idents(seurat_object), seurat_object$orig.ident))
+  proportions<-as.data.frame(prop.table(table(Idents(seurat_object), seurat_object$orig.ident)))
+  names(proportions)<-c("cluster","sample","n")
+  names(numbers)<-c("cluster","sample","n")
+  proportions<-merge(proportions,meta_data,by.x = "sample",by.y="sample_id")
+  numbers<-merge(numbers,meta_data,by.x = "sample",by.y="sample_id")
+  proportions$time.status<-paste0(proportions$time,"-",proportions$treatment)
+  numbers$time.status<-paste0(numbers$time,"-",numbers$treatment)
+  proportion_plots<-lapply(clusters, plot_proportions, proportions,"time.status")
+  numbers_plots<-lapply(clusters, plot_proportions, numbers,"time.status")
+  all_prop_plots<-plot_grid(plotlist=proportion_plots,ncol=4)
+  all_num_plots<-plot_grid(plotlist=numbers_plots,ncol=4)
+  pdf(paste0(out_dir,'/proportion_plots.pdf'),20,20)
+  print(all_prop_plots)
+  dev.off()
+  pdf(paste0(out_dir,'/cell_numbers_plots.pdf'),20,20)
+  print(all_num_plots)
+  dev.off()  
+}
 
 set_colour_by_experiment<-function(seurat_object){
   if (unique(seurat_object$experiment) == '1'){col="red"}
@@ -195,3 +226,29 @@ counts_filter<-function(seurat_object,thresholds){
   try(seurat_object<-subset(seurat_object, subset = nCount_RNA < threshold))
   return(seurat_object)
 }
+
+marker_dotplot<-function(seurat_object,markers,out_dir){
+  DefaultAssay(seurat_object) <- "RNA"
+  clusters<-levels(seurat_object$seurat_clusters)
+  markers_to_plot<-c()
+  for (cluster in clusters){
+    x<-markers[which(markers$cluster == cluster),'gene']
+    markers_to_plot<-c(markers_to_plot, x[0:3] )
+  }
+  markers_to_plot<-unique(markers_to_plot)
+  p<-DotPlot(combined, features = rev(markers_to_plot), dot.scale = 4)
+  p<-p+theme(axis.text.x=element_text(angle=90,vjust=0.5,hjust=1))
+  pdf(file.path(out_dir,"markers_dots.pdf"),15,10)
+  print(p)
+  dev.off()
+  return(p)
+}
+  
+markers_feature_plot<-function(seurat_object,out_dir,markers){
+  markers<-FeaturePlot(seurat_object, features = markers, min.cutoff="q9",pt.size = 0.1)
+  pdf(file.path(out_dir,"markers_feature_plot.pdf"),20,20)
+  print(markers)
+  dev.off()
+}
+
+
