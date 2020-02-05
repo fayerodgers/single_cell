@@ -236,7 +236,7 @@ marker_dotplot<-function(seurat_object,markers,out_dir){
     markers_to_plot<-c(markers_to_plot, x[0:3] )
   }
   markers_to_plot<-unique(markers_to_plot)
-  p<-DotPlot(combined, features = rev(markers_to_plot), dot.scale = 4)
+  p<-DotPlot(seurat_object, features = rev(markers_to_plot), dot.scale = 4)
   p<-p+theme(axis.text.x=element_text(angle=90,vjust=0.5,hjust=1))
   pdf(file.path(out_dir,"markers_dots.pdf"),15,10)
   print(p)

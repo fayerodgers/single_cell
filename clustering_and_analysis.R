@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+.libPaths("/nfs/users/nfs_f/fr7/anaconda2/envs/r_env/lib/R/library")
 m <- modules::use("./SC.R")
 library(argparse)
 library(Seurat)
@@ -9,17 +10,17 @@ library(gridExtra)
 
 parser <- ArgumentParser()
 parser$add_argument("--results_directory",help="directory for files to be written to")
-parser$add_argument("--resolution",type="integer",help="Resolution for identifying clusters (default: 1)",default=1)
+parser$add_argument("--resolution",help="Resolution for identifying clusters (default: 1)",default=1)
 parser$add_argument("--metadata", help="File with sample metadata")
 args <- parser$parse_args()
 
-
+resolution<-as.numeric(args$resolution)
 meta_data<-read.table(args$metadata,header=T)
 dir.create(file.path(args$results_directory,args$resolution))
 out_dir<-file.path(args$results_directory,args$resolution)
 combined<-readRDS(file.path(args$results_directory,"combined_seurat_object.rds"))
 p<-m$elbow_plot(combined,30,"pca", out_dir)
-combined<-m$do_clustering(combined,30,args$resolution)
+combined<-m$do_clustering(combined,30,resolution)
 
 markers_to_plot<-c("Aqp8","Krt20","Muc2","Chga","Lgr5","Dclk1","Cdk4")
 p1<-m$QC_violins(combined, out_dir)
