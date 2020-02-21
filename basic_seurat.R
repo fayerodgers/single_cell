@@ -126,7 +126,6 @@ for (i in names(seurat_objects)){
 }
 
 #integrate datasets
-
 filtered<-c()
 for (i in names(samples)){
   temp<-readRDS(file.path(args$results_directory,i,"seurat_object_postQC.rds"))
@@ -135,12 +134,6 @@ for (i in names(samples)){
 names(filtered)<-names(samples)
 
 combined<-m$integrate_datasets(seurat_objects,30)
-
-
-
-
-
-
 
 #replot and save objects post filtering
 for (i in names(seurat_objects)){
@@ -154,41 +147,9 @@ for (i in names(seurat_objects)){
   saveRDS(seurat_objects[[i]],file.path(out_dir,"seurat_object_filtered.rds"))
 }
 
-
-
-
-#Integrate datasets into one object
-combined<-m$integrate_datasets(seurat_objects,args$dimensions_to_assess)
 combined<-m$do_clustering(combined,args$dimensions_to_analyse,args$resolution)
 
 
-DefaultAssay(combined) <- "RNA"
-saveRDS(combined,paste0(args$results_directory,"/seurat_object.rds"))
-
-#plots to select which clusters to remove
-mito.vln<-VlnPlot(combined, features = c("percent.mito"), cols=rep("red",length(levels(combined$seurat_clusters))), pt.size = 0,do.return=T)
-mito.vln<-mito.vln + theme(axis.text.x=element_text(size=8)) + labs(x="",y="% mitochondrial genes")
-nfeatures.vln<-VlnPlot(combined, features = c("nFeature_RNA"), cols=rep("forestgreen",length(levels(combined$seurat_clusters))), pt.size = 0,do.return=T)
-nfeatures.vln<-nfeatures.vln + theme(axis.text.x=element_text(size=8)) + labs(x="",y="Number of genes")
-counts.vln<-VlnPlot(combined, features = c("nCount_RNA"), cols=rep("tan1",length(levels(combined$seurat_clusters))), pt.size = 0,do.return=T)
-counts.vln<-counts.vln + theme(axis.text.x=element_text(size=8)) + labs(x="",y="Number of molecules")
-p<-DimPlot(combined,reduction="umap",split.by = "time.status")
-dim.plots<-m$plot_UMAPS(combined)
-markers<-FeaturePlot(combined, features = c("Aqp8","Krt20","Muc2","Chga","Lgr5","Dclk1","Cdk4","Il33","Ly6a"), min.cutoff="q9",pt.size = 0.1)
-
-combined <- subset(combined, subset = nCount_RNA < 150000)
-combined <- subset(combined, idents = c('1','6','11','29'), invert = TRUE)
-#re-do clustering
-elbow<-ElbowPlot(combined,ndims=args$dimensions_to_assess)
-args$dimensions_to_analyse <- 20
-combined <- NormalizeData(combined)
-combined <- FindVariableFeatures(combined, selection.method = "vst",nfeatures = 2000)
-combined <- m$run_pca(combined,20)
-combined <- RunUMAP(combined, reduction = "pca", dims = 1:20)
-combined <- FindNeighbors(combined, reduction = "pca", dims = 1:20)
-combined <- FindClusters(combined, resolution = 1)
-
-#
 
 print_plot<-function(dir,file_name,plot){
   pdf(paste0(dir,file_name))
@@ -196,38 +157,6 @@ print_plot<-function(dir,file_name,plot){
   dev.off()
 }
 
-
-
-#Printing plots
-pdf(paste0(args$results_directory,"/elbowplot.pdf"))
-ElbowPlot(combined,ndims=args$dimensions_to_assess)
-dev.off()
-
-mito.vln<-VlnPlot(combined, features = c("percent.mito"), cols=rep("red",length(samples)), pt.size = 0,group.by='orig.ident',do.return=T)
-mito.vln<-mito.vln + theme(axis.text.x=element_text(size=8)) + labs(x="",y="% mitochondrial genes", title = args$cellranger_version)
-
-nfeatures.vln<-VlnPlot(combined, features = c("nFeature_RNA"), cols=rep("forestgreen",length(samples)), pt.size = 0,group.by='orig.ident',do.return=T)
-nfeatures.vln<-nfeatures.vln + theme(axis.text.x=element_text(size=8)) + labs(x="",y="Number of genes", title = args$cellranger_version)
-
-pdf(paste0(args$results_directory,"/percentmito.pdf"),12,6)
-print(mito.vln)
-dev.off()
-
-pdf(paste0(args$results_directory,"/nfeatures.pdf"),12,6)
-print(nfeatures.vln)
-dev.off()
-
-pdf(paste0(args$results_directory,"/umaps.pdf"),20,20)
-print(dim.plots)
-dev.off()
-
-pdf(paste0(args$results_directory,"/infection_umap.pdf"),20,20)
-print(p)
-dev.off()
-
-pdf(paste0(args$results_directory,"/markers.pdf"),20,20)
-print(markers)
-dev.off()
 
 #find cluster markers
 clusters<-levels(combined$seurat_clusters)
@@ -259,7 +188,7 @@ pdf(paste0(args$results_directory,'/proportion_plots.pdf'),20,20)
 print(all_plots)
 dev.off()
 
-#find regulated genes- TODO- make it so that we're comparing within a time point.
+#find regulated genes
 combined_24h<-subset(combined,idents="24hpi")
 Idents(combined_24h)<-'seurat_clusters'
 combined_72h<-subset(combined,idents="72hpi")
