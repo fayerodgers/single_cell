@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 #.libPaths("/nfs/users/nfs_f/fr7/anaconda2/envs/r_env/lib/R/library")
-m <- modules::use("/Users/fr7/git_repos/single_cell/SC.R")
+m <- modules::use("/Users/fr7/git_repos/single_cell/scripts/SC.R")
 library(argparse)
 library(Seurat)
 library(ggplot2)
@@ -19,10 +19,6 @@ parser$add_argument("--annotation_version", help="mouse reference annotation use
 parser$add_argument("--mito_cutoff", type="integer", help="Filter out cells with % reads aligning to mitochondrial genes greater than this (default: no cutoff)",default=100)
 parser$add_argument("--nfeatures_cutoff", type="integer",help="Filter out cells with fewer features than this (default: no filter)", default=0)
 parser$add_argument("--ncells_cutoff",type="integer",help="Only include features (genes) that are expressed in more than this number of cells (default: no filter)",default=0)
-parser$add_argument("--variable_features",type="integer",help="Take top x variable genes (default: 2000)",default=2000)
-parser$add_argument("--dimensions_to_assess", type="integer",help="Number of prinicpal components to calculate (default: 30)",default=30)
-parser$add_argument("--dimensions_to_analyse",type="integer",help="Number of prinicpal components to include in UMAP and neighbour finding (default: 25)", default=25)
-parser$add_argument("--resolution",type="integer",help="Resolution for identifying clusters (default: 1)",default=1)
 
 args <- parser$parse_args()
 
@@ -35,8 +31,7 @@ args$cellranger_version<-'cellranger302'
 args$metadata<-'/Users/fr7/git_repos/single_cell/metadata/samples.txt'
 args$samples<-'/Users/fr7/git_repos/single_cell/experiment_4/samples_to_analyse.txt'
 args$results_directory<-'/Users/fr7/git_repos/single_cell/experiment_4/FINAL'
-#args$mito_cutoff<-0
-#args$ncells_cutoff<-10
+
 
 #find samples and meta data
 samples<-scan(args$samples,what=character())
@@ -49,11 +44,11 @@ for (sample in samples){
   dir.create(file.path(dir,sample))
 }
 
-#QC:get samples into seurat_objects
+#QC:get samples into seurat objects
 seurat_objects<-lapply(samples,m$normalize_data,
                        args$cellranger_version,
                        meta_data,
-                       args$variable_features,
+                       2000,
                        args$ncells_cutoff,
                        args$mito_cutoff,
                        args$nfeatures_cutoff,
@@ -129,105 +124,105 @@ dir<-file.path(dir,'mito_filtered')
 dir.create(dir)
 for (sample in samples){
   dir.create(file.path(dir,sample))
+  out_dir<-file.path(dir,sample)
+  saveRDS(mito_filtered[[sample]],file.path(out_dir,"seurat_object.rds"))
 }
 
 #redo all plots post mito filtering
-umi_frequency_plots<-lapply(names(umi_filtered),m$umi_frequency_plot,umi_filtered,dir,0)
+umi_frequency_plots<-lapply(names(mito_filtered),m$umi_frequency_plot,mito_filtered,dir,0)
 all<-m$print_combined(umi_frequency_plots,dir,'UMI_frequency')
 
-mito_frequency_plots<-lapply(names(umi_filtered),m$mito_frequency_plot,umi_filtered,dir)
+mito_frequency_plots<-lapply(names(mito_filtered),m$mito_frequency_plot,mito_filtered,dir)
 all<-m$print_combined(mito_frequency_plots,dir,'mito_frequency')
 
-genes_frequency_plots<-lapply(names(umi_filtered),m$genes_frequency_plot,umi_filtered,dir)
+genes_frequency_plots<-lapply(names(mito_filtered),m$genes_frequency_plot,mito_filtered,dir)
 all<-m$print_combined(genes_frequency_plots,dir,'genes_frequency')
 
-
-#run PCA and cluster each sample
-#scale data and run pca
-mito_filtered<-lapply(mito_filtered,m$run_pca,args$dimensions_to_assess)
-
-#elbow plots to select no. of PCs to use in clustering
-elbow_plots<-c()
-for (i in names(mito_filtered)){
-  out_dir<-file.path(dir,i)
-  p<-m$elbow_plot(mito_filtered[[i]],args$dimensions_to_assess,"pca", out_dir)
-  elbow_plots<-c(elbow_plots,p)
-}
-
-#clustering
-mito_filtered<-lapply(mito_filtered,m$do_clustering,25,1)
-markers_to_plot<-c("Aqp8","Krt20","Muc2","Chga","Lgr5","Dclk1","Cdk4","Isg15")
-for (i in names(mito_filtered)){
-  out_dir<-file.path(dir,i)
-  p1<-m$QC_violins(mito_filtered[[i]], out_dir)
-  p2<-m$QC_scatters(mito_filtered[[i]],out_dir)
-  p3<-m$plot_UMAPS(mito_filtered[[i]],out_dir)
-  p4<-m$marker_violins(mito_filtered[[i]],out_dir,markers_to_plot)
-# markers<-m$find_all_markers(mito_filtered[[i]],out_dir)
-  saveRDS(mito_filtered[[i]],file.path(out_dir,"seurat_object.rds"))
-}
-
-#new directory for doublet filtering
-dir<-file.path(dir,'doublet_filtering')
-dir.create(dir)
-for (sample in samples){
-  dir.create(file.path(dir,sample))
-}
-
-#Doublet decon
-doublet_filtered<-list()
-ndoublets<-c()
-for (i in names(mito_filtered)){
-  out_dir<-file.path(dir,i)
-  files<-m$prepare_for_doublet_decon(mito_filtered[[i]],out_dir,i)
-}
-
-#starting here today- reload seurat objects
+#maybe
 mito_filtered<-list()
-dir<-'/Users/fr7/git_repos/single_cell/experiment_4/FINAL/QC/umi_filtered/mito_filtered'
+dir<-file.path(args$results_directory,'QC','umi_filtered','mito_filtered')
 for (sample in samples){
-  i<-readRDS(file.path(dir,sample,'seurat_object.rds'))
-  mito_filtered[[sample]]<-i
-}
-dir<-file.path(dir,'doublet_filtering')
-###
-
-#run this for a few different values of rhop and decide on the best value for each sample
-
-for (i in names(mito_filtered)){
-  out_dir<-file.path(dir,i)
-  expression_file<-read.table(file.path(out_dir,paste0(i,"_expression")),row.names=1)
-  groups_file<-read.table(file.path(out_dir,paste0(i,"_groups")),header=FALSE,row.names = 1)
-  results<-m$run_doublet_decon(expression_file,groups_file,i,out_dir,0.75,TRUE)
+  mito_filtered[[sample]]<-readRDS(file.path(dir,sample,'seurat_object.rds'))
 }
 
-doublet_filters<-read.table('/Users/fr7/git_repos/single_cell/experiment_4/FINAL/doublet_filters.txt',header=T)
-results<-list()
-for (i in names(mito_filtered)){
-  out_dir<-file.path(dir,i)
-  expression_file<-read.table(file.path(out_dir,paste0(i,"_expression")),row.names=1)
-  groups_file<-read.table(file.path(out_dir,paste0(i,"_groups")),header=FALSE,row.names = 1)
-  filter<-doublet_filters[which(doublet_filters$sample == i),'rhop']
-  results[[i]]<-m$run_doublet_decon(expression_file,groups_file,i,out_dir,filter,TRUE)
+#merge all samples
+all<- merge(mito_filtered[[1]], y = mito_filtered[-1], add.cell.ids = names(mito_filtered), project = "all" )
+dir<-file.path(args$results_directory,'QC','combined')
+
+#standard clustering workflow
+all <- CellCycleScoring(all, s.features = s.genes, g2m.features = g2m.genes)
+all$CC.Difference <- all$S.Score - all$G2M.Score
+all<-NormalizeData(all)
+all<-FindVariableFeatures(all, selection.method = "vst",nfeatures = 2000)
+all<-ScaleData(all, verbose = FALSE, vars.to.regress = c("orig.ident","CC.Difference","nCount_RNA"))
+all<- RunPCA(all, verbose = FALSE, npcs=40)
+all <- m$do_clustering(all,pcdimensions=35,resolution=0.2,min.dist=0.01)
+
+p<-m$plot_UMAPS(all,dir)
+markers_to_plot<-c("Aqp8","Krt20","Muc2","Chga","Lgr5","Dclk1","Cdk4","Isg15","Ptprc","Reg3g")
+p<-m$marker_violins(all,dir,markers_to_plot)
+p<-m$markers_feature_plot(all,dir,markers_to_plot)
+markers<-m$find_all_markers(all,dir)
+marker_dots<-m$marker_dotplot(all,markers,dir)
+
+#identify and merge clusters
+new.cluster.ids<-c("0","0","2","3","4","5","6","7","8")
+names(new.cluster.ids)<-levels(all$seurat_clusters)
+all <- RenameIdents(all,new.cluster.ids)
+
+#recalculate markers
+markers<-m$find_all_markers(all,dir)
+marker_dots<-m$marker_dotplot(all,markers,dir)
+
+#doublet decon
+files<-m$prepare_for_doublet_decon(all,dir,'all')
+#run DD 10 times and take the intersection.
+results_list<-list()
+for (i in 1:10){
+  results<-m$run_doublet_decon(files$newExpressionFile,files$newGroupsFile,'all',dir,1,FALSE)
+  results_list[[i]]<-results
 }
 
-#extract doublets
-after_doublets<-list()
-
-for (i in names(results)){
-  doublets<-row.names(results[[i]]$DRS_doublet_table[which(results[[i]]$DRS_doublet_table$isADoublet == 'TRUE'),])
-  print(c(i,length(doublets)))
-  after_doublets[[i]]<-subset(mito_filtered[[i]],cells=doublets,invert=TRUE)
+all_doublets <- row.names(results_list[[1]]$Final_doublets_groups)
+for (results in results_list){
+  doublets<-row.names(results$Final_doublets_groups)
+  all_doublets <- intersect(all_doublets,doublets) #49 doublets
 }
 
-after_doublets<-lapply(after_doublets,m$run_pca,args$dimensions_to_assess)
-after_doublets<-lapply(after_doublets,m$do_clustering,args$dimensions_to_analyse,1)
-for (i in names(after_doublets)){
-  out_dir<-file.path(dir,i)
-  p1<-m$QC_violins(after_doublets[[i]], out_dir)
-  p2<-m$QC_scatters(after_doublets[[i]],out_dir)
-  p3<-m$plot_UMAPS(after_doublets[[i]],out_dir)
-  p4<-m$marker_violins(after_doublets[[i]],out_dir,markers_to_plot)
-  #  markers<-m$find_all_markers(postQC[[i]],out_dir)
-  saveRDS(after_doublets[[i]],file.path(out_dir,"after_doublets.rds"))
+
+all.1<-subset(all,cells=all_doublets,invert=TRUE)
+all.1 <- m$do_clustering(all.1,pcdimensions=35,resolution=0.3,min.dist=0.01)
+
+p<-m$plot_UMAPS(all.1,dir)
+p<-m$marker_violins(all.1,dir,markers_to_plot)
+p<-DimPlot(all.1,cells.highlight=WhichCells(all.1,ident="9"))
+markers<-m$find_all_markers(all.1,dir)
+marker_dots<-m$marker_dotplot(all.1,markers,dir)
+
+#Also extract the immune cell cluster
+immune_cell_markers<-c("Ptprc","Thy1","Cd3e","Cd3d","Insr","Fcgr1","Fcgr3","Fcgr2b","Epcam","Cd80","Cd86")
+fibroblast_markers<-c("Vim","Col6a2","Col1a2","Dpt")
+
+pdf(file.path(dir,"immune_cluster_violins.pdf"),20,10)
+VlnPlot(all.1,features=immune_cell_markers,pt.size=0,ncol=5)
+dev.off()
+
+pdf(file.path(dir,"fibroblast_cluster_violins.pdf"),20,10)
+VlnPlot(all.1,features=fibroblast_markers,pt.size=0,ncol=4)
+dev.off()
+
+
+clusters<-levels(all.1)
+clusters<-clusters[clusters != "8"]
+all.2<-subset(all.1,idents=clusters)
+
+#separate back into original datasets 
+Idents(all.2)<-"orig.ident"
+for (sample in samples){
+  object<-subset(all.2,idents=sample)
+  saveRDS(object,file.path(dir,paste0(sample,".rds")))
 }
+
+##############
+
+
