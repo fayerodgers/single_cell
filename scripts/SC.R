@@ -12,7 +12,7 @@ evaluate<-function(text){
 }
 
 normalize_data<-function(sample,cellranger_version,meta_data,variable_features,ncells,nmito,nfeatures,annotation){
-  data <- Read10X(data.dir = paste0("./count_matrices/",annotation,"/",cellranger_version,"/",sample,"/filtered_feature_bc_matrix"),unique.features = TRUE)
+  data <- Read10X(data.dir = paste0("/Users/fr7/git_repos/single_cell/count_matrices/",annotation,"/",cellranger_version,"/",sample,"/filtered_feature_bc_matrix"),unique.features = TRUE)
   seurat_object <- CreateSeuratObject(counts=data, project = paste0(sample),min.cells=ncells,min.features=nfeatures)
   seurat_object[["infection_status"]] <- as.character(meta_data[which(meta_data$sample_id == sample),'treatment']) 
   seurat_object[["experiment"]] <- as.character(meta_data[which(meta_data$sample_id == sample),'experiment'])
@@ -42,6 +42,16 @@ run_pca<-function(seurat_object,ndims){
   return(seurat_object)
 }
 
+normalize_and_run_pca<-function(seurat_object,npcs,out_dir){
+	seurat_object <- NormalizeData(seurat_object)
+	seurat_object<- FindVariableFeatures(seurat_object, selection.method = "vst",nfeatures = 2000)
+	seurat_object <- ScaleData(seurat_object, verbose = FALSE)
+	seurat_object <- RunPCA(seurat_object, npcs = npcs, verbose = FALSE)
+	p <- elbow_plot(seurat_object,npcs,"pca",out_dir)
+	return(seurat_object)
+}
+
+
 elbow_plot<-function(seurat_object,ndims,reduction,out_dir){
   p1<-ElbowPlot(seurat_object,ndims = ndims,reduction = reduction)
   pdf(file.path(out_dir,"elbowplot.pdf"))
@@ -51,16 +61,16 @@ elbow_plot<-function(seurat_object,ndims,reduction,out_dir){
 }
 
 integrate_datasets<-function(list_of_seurat_objects,ndims){        
-  anchors<-FindIntegrationAnchors(list_of_seurat_objects)
-  combined<- IntegrateData(anchorset = anchors)
+  anchors<-FindIntegrationAnchors(list_of_seurat_objects, dims = 1:35)
+  combined<- IntegrateData(anchorset = anchors, dims = 1:35)
   DefaultAssay(combined) <- "integrated"
   combined <- ScaleData(combined, verbose = FALSE)
   combined <- RunPCA(combined, npcs = ndims, verbose = FALSE)
   return(combined)
 }  
 
-do_clustering<-function(combined,pcdimensions,resolution){
-  combined <- RunUMAP(combined, reduction = "pca", dims = 1:pcdimensions)
+do_clustering<-function(combined,pcdimensions,resolution,min.dist){
+  combined <- RunUMAP(combined, reduction = "pca", dims = 1:pcdimensions, min.dist=min.dist)
   combined <- FindNeighbors(combined, reduction = "pca", dims = 1:pcdimensions)
   combined <- FindClusters(combined, resolution = resolution)
   return(combined)
@@ -71,8 +81,8 @@ plot_UMAPS<-function(seurat_object,out_dir){
   p2<-DimPlot(seurat_object,reduction="umap",group.by = "orig.ident")
   p3<-FeaturePlot(seurat_object,features="percent.mito")
   p4<-FeaturePlot(seurat_object,features = "nFeature_RNA")
-  all<-CombinePlots(plots=list(p1,p2,p3,p4),ncol=3)
-  pdf(file.path(out_dir,"UMAPs.pdf"),30,30)
+  all<-CombinePlots(plots=list(p1,p2,p3,p4),ncol=2)
+  pdf(file.path(out_dir,"UMAPs.pdf"),20,20)
   print(all)
   dev.off()
   return(all)
@@ -192,7 +202,7 @@ scatter<-function(seurat_object,feature1,feature2,xlim=NULL,ylim=NULL){
 }
 
 find_all_markers<-function(seurat_object,out_dir){
-  markers<-FindAllMarkers(seurat_object,min.pct = 0.3,logfc.threshold = 0.75,only.pos=TRUE)
+  markers<-FindAllMarkers(seurat_object,min.pct = 0.3,logfc.threshold = 0.5,only.pos=TRUE)
   write.table(markers, file = file.path(out_dir,'markers.txt'), sep ='\t', eol = '\n') 
   return(markers)
 }
@@ -258,7 +268,7 @@ marker_dotplot<-function(seurat_object,markers,out_dir){
   markers_to_plot<-unique(markers_to_plot)
   p<-DotPlot(seurat_object, features = rev(markers_to_plot), dot.scale = 4)
   p<-p+theme(axis.text.x=element_text(angle=90,vjust=0.5,hjust=1))
-  pdf(file.path(out_dir,"markers_dots.pdf"),10,5)
+  pdf(file.path(out_dir,"markers_dots.pdf"),15,5)
   print(p)
   dev.off()
   return(p)
