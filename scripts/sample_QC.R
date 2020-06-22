@@ -186,7 +186,7 @@ for (i in 1:10){
 all_doublets <- row.names(results_list[[1]]$Final_doublets_groups)
 for (results in results_list){
   doublets<-row.names(results$Final_doublets_groups)
-  all_doublets <- intersect(all_doublets,doublets) #49 doublets
+  all_doublets <- intersect(all_doublets,doublets) 
 }
 
 
