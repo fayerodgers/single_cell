@@ -11,26 +11,28 @@ library(stats)
 library(randomForest)
 library(loomR)
 
-cols <- c(
-  "UNDIFFERENTIATED.1" = "springgreen4",
-  "UNDIFFERENTIATED.2" = "steelblue" ,  
-  "UNDIFFERENTIATED.3" =  "goldenrod",
-  "ENTEROCYTE.1" = "orange",
-  "ENTEROCYTE.2" = "darksalmon",
-  "ENTEROCYTE.3" = "darkolivegreen4",
-  "ENTEROCYTE.4" = "magenta1",
-  "ENTEROCYTE.ISG15" = "red",
-  "ENTEROCYTE.ACE2" = "darkorchid4",
-  "GOBLET" = "cornflowerblue",
-  "TUFT" = "darkmagenta",
-  "EE" = "chocolate"
+
+cols.2 <- c(
+  "Und.1" = "#a6cee3",
+  "Und.2" = "#fb9a99" ,  
+  "Und.3" =  "#b2df8a",
+  "Entero.1" = "#1f78b4",
+  "Entero.2" = "#ff7f00",
+  "Entero.3" = "#cab2d6",
+  "Entero.Isg15" = "#e31a1c",
+  "Goblet" = "#33a02c",
+  "Tuft" = "#fdbf6f",
+  "Ee" = "#b15928"
 )
+
+
 
 dir <- '/Users/fr7/git_repos/single_cell/experiment_4/FINAL/integrated/day1_classify'
 control <- readRDS('/Users/fr7/git_repos/single_cell/experiment_4/FINAL/integrated/control/seurat_object.rds')
 samples_directory<-'/Users/fr7/git_repos/single_cell/experiment_4/FINAL/QC/combined'
 meta_data<-read.table('/Users/fr7/git_repos/single_cell/metadata/samples.txt',header=T)
 condition<-'infected.24'
+figures_dir<-'/Users/fr7/git_repos/single_cell/figuresNov20'
 
 #find the IDs of the samples that we want
 samples<-meta_data[which(meta_data$condition == condition & meta_data$experiment == '4'),'sample_id']
@@ -74,7 +76,7 @@ Idents(day.1)<-"predicted.id"
 
 
 pdf(file.path(dir,"UMAP_clusters.pdf"))
-DimPlot(day.1,reduction="umap",label=TRUE,label.size=2,repel=TRUE, cols=cols)+NoLegend()
+DimPlot(day.1,reduction="umap",label=TRUE,label.size=2,repel=TRUE, cols=cols.2)+NoLegend()
 dev.off()
 
 pdf(file.path(dir,"UMAP_batches.pdf"))
@@ -100,3 +102,88 @@ newcells.markers <- FindMarkers(day.1, ident.1 = "NewCells", min.pct = 0.3,logfc
 day.1<-FindVariableFeatures(day.1)
 day.1@graphs<-list()
 day.1.loom <- as.loom(day.1, filename = file.path(dir,"day.1.loom"), verbose = TRUE)
+
+d1<-readRDS(file.path(dir.d1,"seurat_object.rds"))
+
+d1<-day.1
+
+fig.4a.d1 <-DimPlot(d1,reduction="umap",label=TRUE,label.size=1,repel=TRUE, cols=cols.2,pt.size=0.1)+
+  NoLegend() +
+  theme(axis.text=element_text(size=5), axis.title=element_text(size=5))
+
+pdf(file.path(figures_dir,"fig.4a.d1.pdf"),2.5,2.5)
+fig.4a.d1
+dev.off()
+
+umap.for.grant.d1 <-DimPlot(d1,reduction="umap", cols=cols.2,pt.size=0.3)+
+  theme(axis.text=element_text(size=5), axis.title=element_text(size=5))
+
+leg<-get_legend(umap.for.grant.d1)
+
+pdf(file.path(figures_dir,"umap.legend.pdf"),2.5,2.8)
+as_ggplot(leg)
+dev.off()
+
+F19 <-DimPlot(d1,reduction="umap", cols=cols.2,pt.size=0.1)+
+  theme(axis.text=element_text(size=5), axis.title=element_text(size=5))+
+  NoLegend()
+
+pdf(file.path(figures_dir,"F19.pdf"),2.5,2.5)
+F19
+dev.off()
+
+
+###VlnPlots for NewCells###
+new.genes<-c("Muc2", "Reg4","Ido1","Fcgbp","Clca1","Fer1l6","Zg16","Sct","Isg15","Sytl2")
+levels(d1)<-c("NewCells",levels(control))
+figs<-list()
+for (gene in new.genes){
+  fig <- VlnPlot(d1,features=gene,pt.size=0,cols=cols)+
+    theme(text = element_text(size=2),
+          axis.text.y = element_text(size=4,margin=margin(-100,0,0,0),hjust=-100),
+          axis.text.x=element_blank(),
+          legend.position = "none",
+          axis.title.x =element_blank(),
+          axis.title.y =element_blank(),
+          axis.line = element_line(size = 0.1),
+          axis.ticks=element_blank(),
+          plot.title=element_text(size=5, face="plain")
+    )
+  
+  fig$layers[[1]]$aes_params$size = 0.1
+  figs[[gene]]<-fig
+}
+
+fig.4d.d1<-plot_grid(plotlist=figs, ncol=10)
+
+pdf(file.path(figures_dir,"fig.4d.d1.pdf"),7,1)
+fig.4d.d1
+dev.off()
+
+
+###new cells go terms###
+go<-read.csv(file.path(dir.d1,"newcells_go.csv"),header=TRUE)
+
+fig.4d<-ggplot(go,x=time,y=PathwayName)+
+  geom_point(aes(x=time,y=PathwayName, size=ngenes, col=PathwayPadj))+
+  scale_color_gradient(limits = c(0.001,0.05),
+                       oob=squish, 
+                       name = "Pathway p-value\n(adjusted)", 
+                       breaks = c(0.001,0.05),
+                       labels = c("< 0.001","> 0.05"),
+                       guide = guide_colourbar())+
+  scale_size_continuous(name="Number of\ngenes", range = c(1,1.5))+
+  theme(text = element_text(size=5),
+        axis.text.x=element_text(size=5),
+        legend.title = element_text(size = 5), 
+        legend.text = element_text(size = 5),
+        legend.margin=margin(0,0,0,0), 
+        legend.box.margin=margin(-10,-10,-10,-10) )+
+  labs(x=NULL,y=NULL)+
+  guides(color = guide_colourbar(barwidth = 0.5, barheight = 2), 
+         size = guide_legend(keywidth = 0.5, keyheight = 0.5))
+
+pdf(file.path(figures_dir,'fig.4d.pdf'),3,1.8)
+print(fig.4d)
+dev.off()
+

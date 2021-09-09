@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 #.libPaths("/nfs/users/nfs_f/fr7/anaconda2/envs/r_env/lib/R/library")
-m <- modules::use("./SC.R")
+m <- modules::use("/Users/fr7/git_repos/single_cell/scripts/SC.R")
 library(argparse)
 library(Seurat)
 library(ggplot2)
@@ -19,14 +19,14 @@ args$metadata<-'/Users/fr7/git_repos/single_cell/metadata/samples.txt'
 dir<-'/Users/fr7/git_repos/single_cell/experiment_4/FINAL/combined'
 samples<-scan(args$samples,what=character())
 meta_data<-read.table(args$metadata,header=T)
-sample_dir<-'/Users/fr7/git_repos/single_cell/experiment_4/FINAL/QC/umi_filtered/mito_filtered/doublet_filtering'
+sample_dir<-'/Users/fr7/git_repos/single_cell/experiment_4/FINAL/QC/umi_filtered/mito_filtered'
 
 #maybe
-combined<-readRDS(file.path(dir,"seurat_object.rds"))
+#combined<-readRDS(file.path(dir,"seurat_object.rds"))
 
 seurat_objects<-list()
 for (sample in samples){
-  object<-readRDS(file.path(sample_dir,sample,'after_doublets.rds'))
+  object<-readRDS(file.path(sample_dir,sample,'seurat_object.rds'))
   seurat_objects[[sample]]<-object
 }
 
@@ -36,7 +36,167 @@ for (i in names(seurat_objects)){
   seurat_objects[[i]] <- FindVariableFeatures(seurat_objects[[i]], selection.method = "vst", nfeatures = 2000)
 }
 
+dir<-file.path(dir,'QC')
+dir.create(dir)
+
+#first integrate all objects, to check for the immune cell cluster and doublets
 combined<-m$integrate_datasets(seurat_objects,30)
+p<-m$elbow_plot(combined,30,"pca", dir)
+combined<-m$do_clustering(combined,25,0.4)
+markers_to_plot<-c("Aqp8","Krt20","Muc2","Chga","Lgr5","Dclk1","Cdk4","Isg15","Cd3e","Ptprc")
+p1<-m$QC_violins(combined, dir)
+p2<-m$QC_scatters(combined,dir)
+p3<-m$plot_UMAPS(combined,dir)
+p4<-m$marker_violins(combined,dir,markers_to_plot)
+saveRDS(combined,file.path(dir,'seurat_object.rds'))
+
+#doublet decon
+DefaultAssay(combined) <- "RNA"
+files<-m$prepare_for_doublet_decon(combined,dir,'combined')
+results<-m$run_doublet_decon(files$newExpressionFile,files$newGroupsFile,'combined',dir,1.04,TRUE)
+doublets<-row.names(results$Final_doublets_groups)
+test<-subset(combined,cells=doublets,invert=TRUE)
+
+dir<-file.path(dir,'post_doublet_decon')
+dir.create(dir)
+
+test <- RunUMAP(test, reduction = "pca", dims = 1:30,min.dist=0.01)
+test <- FindNeighbors(test, reduction = "pca", dims = 1:30)
+test <- FindClusters(test, resolution = 3)
+
+#remove immune cell cluster
+test<-subset(test,idents="45",inverse=TRUE)
+
+p3<-m$plot_UMAPS(test,dir)
+p4<-m$marker_violins(test,dir,markers_to_plot)
+DimPlot(test,reduction="umap",cells.highlight = WhichCells(test, idents = ""))
+FeaturePlot(test,features=c("Dclk1"))
+tufts<-subset(test,idents=c("67"))
+tufts <- RunUMAP(tufts, reduction = "pca", dims = 1:25)
+tufts <- FindNeighbors(tufts, reduction = "pca", dims = 1:25)
+tufts <- FindClusters(tufts, resolution = 1)
+p3<-m$plot_UMAPS(tufts,dir)
+tuft.markers<-m$find_all_markers(tufts,dir)
+FeaturePlot(tufts,features=c("Eif3a"))
+FeaturePlot(test,features=c("Eif3a","Dclk1","Cdk4"))
+p1<-m$QC_violins(tufts, dir)
+
+
+###
+markers<-m$find_all_markers(combined,dir)
+marker_dots<-m$marker_dotplot(combined,markers,dir)
+
+
+
+combined_r1<-m$do_clustering(combined,25,1)
+saveRDS(combined_r1,file.path(dir,"seurat_object.rds"))
+markers_to_plot<-c("Aqp8","Krt20","Muc2","Chga","Lgr5","Dclk1","Cdk4","Isg15")
+p1<-m$QC_violins(combined_r1, dir)
+p2<-m$QC_scatters(combined_r1,dir)
+p3<-m$plot_UMAPS(combined_r1,dir)
+p4<-m$marker_violins(combined_r1,dir,markers_to_plot)
+markers<-m$find_all_markers(combined_r1,dir)
+marker_dots<-m$marker_dotplot(combined_r1,markers,dir)
+
+immune_cell_markers<-c("Ptprc","Thy1","Cd3e","Cd3d","Insr","Fcgr1","Fcgr3","Fcgr2b","Epcam","Cd80","Cd86")
+fibroblast_markers<-c("Vim","Col6a2","Col1a2","Dpt")
+
+pdf(file.path(dir,"immune_cluster_violins.pdf"),20,10)
+VlnPlot(combined_r1,features=immune_cell_markers,pt.size=0,ncol=5)
+dev.off()
+
+pdf(file.path(dir,"fibroblast_cluster_violins.pdf"),20,10)
+VlnPlot(combined_r1,features=fibroblast_markers,pt.size=0,ncol=4)
+dev.off()
+
+#cluster 22 identified as contaminant immune cluster
+immune<-WhichCells(combined_r1, idents = "22")
+pdf(file.path(dir,"immune_highlighted.pdf"),6,5)
+DimPlot(combined_r1,reduction="umap",cells.highlight = immune)
+dev.off()
+
+#Remove cluster 22
+clusters<-levels(combined_r1)
+clusters<-clusters[clusters != "22"]
+combined_r1_immune_removed<-subset(combined_r1,idents=clusters)
+
+#separate back into original datasets
+seurat_objects_immune_removed<-list()
+Idents(combined_r1_immune_removed)<-"orig.ident"
+for (sample in samples){
+  object<-subset(combined_r1_immune_removed,idents=sample)
+  seurat_objects_immune_removed[[sample]]<-object
+}
+
+#count how many cells have been lost in each sample
+for (sample in samples){
+  original<-length(seurat_objects[[sample]]$orig.ident)
+  current<-length(seurat_objects_immune_removed[[sample]]$orig.ident)
+  print( c(sample,original,current) )
+}
+
+#rescale and integrate the control samples
+control_objects<-list()
+for (i in names(seurat_objects_immune_removed)){
+  if (unique(seurat_objects_immune_removed[[i]]$infection_status == 'control')){
+    control_objects[[i]]<-seurat_objects_immune_removed[[i]]
+  }
+}
+
+for (i in names(control_objects)){
+  DefaultAssay(control_objects[[i]]) <- "RNA"
+  control_objects[[i]]<-NormalizeData(control_objects[[i]])
+  control_objects[[i]] <- FindVariableFeatures(control_objects[[i]], selection.method = "vst", nfeatures = 2000)
+}
+
+combined_control<-m$integrate_datasets(control_objects,30)
+ElbowPlot(combined_control,ndims = 30,reduction = "pca")
+dir<-file.path(dir,'control')
+dir.create(dir)
+
+resolution<-1.5
+#testing
+dir<-file.path(dir,resolution)
+dir.create(dir)
+combined_control <- RunUMAP(combined_control, reduction = "pca", dims = 1:25,min.dist=0.001)
+combined_control <- FindNeighbors(combined_control, reduction = "pca", dims = 1:25)
+combined_control <- FindClusters(combined_control, resolution = 3)
+p3<-m$plot_UMAPS(combined_control,dir)
+p4<-m$marker_violins(combined_control,dir,markers_to_plot)
+
+FeaturePlot(combined_control,features=c("Chga","Dclk1","Chgb"))
+DimPlot(combined_control,reduction="umap",cells.highlight = WhichCells(combined_control,idents="36"))
+
+combined_control<-m$do_clustering(combined_control,25,resolution)
+dir<-file.path(dir,resolution)
+dir.create(dir)
+
+p1<-m$QC_violins(combined_control, dir)
+p2<-m$QC_scatters(combined_control,dir)
+p3<-m$plot_UMAPS(combined_control,dir)
+p4<-m$marker_violins(combined_control,dir,markers_to_plot)
+markers<-m$find_all_markers(combined_control,dir)
+marker_dots<-m$marker_dotplot(combined_control,markers,dir)
+
+#######
+
+combined.2<-m$do_clustering(combined,25,1)
+combined<-m$do_clustering(combined,25,1)
+
+p3<-m$plot_UMAPS(combined,dir)
+p4<-m$marker_violins(combined,dir,markers_to_plot)
+
+combined <- RunUMAP(combined, reduction = "pca", dims = 1:10)
+combined <- FindNeighbors(combined, reduction = "pca", dims = 1:10)
+combined <- FindClusters(combined, resolution = 0.15)
+p3<-m$plot_UMAPS(combined,dir)
+p4<-m$marker_violins(combined,dir,markers_to_plot)
+
+
+
+####### 
+
+
 combined_r2<-m$do_clustering(combined,25,2)
 combined_r0.2<-m$do_clustering(combined,25,0.2)
 combined_r0.1<-m$do_clustering(combined,25,0.1)

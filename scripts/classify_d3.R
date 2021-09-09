@@ -10,27 +10,29 @@ library(gridExtra)
 library(stats)
 library(randomForest)
 library(loomR)
+library(ggpubr)
 
-cols <- c(
-  "UNDIFFERENTIATED.1" = "springgreen4",
-  "UNDIFFERENTIATED.2" = "steelblue" ,  
-  "UNDIFFERENTIATED.3" =  "goldenrod",
-  "ENTEROCYTE.1" = "orange",
-  "ENTEROCYTE.2" = "darksalmon",
-  "ENTEROCYTE.3" = "darkolivegreen4",
-  "ENTEROCYTE.4" = "magenta1",
-  "ENTEROCYTE.ISG15" = "red",
-  "ENTEROCYTE.ACE2" = "darkorchid4",
-  "GOBLET" = "cornflowerblue",
-  "TUFT" = "darkmagenta",
-  "EE" = "chocolate"
+
+cols.2 <- c(
+  "Und.1" = "#a6cee3",
+  "Und.2" = "#fb9a99" ,  
+  "Und.3" =  "#b2df8a",
+  "Entero.1" = "#1f78b4",
+  "Entero.2" = "#ff7f00",
+  "Entero.3" = "#cab2d6",
+  "Entero.Isg15" = "#e31a1c",
+  "Goblet" = "#33a02c",
+  "Tuft" = "#fdbf6f",
+  "Ee" = "#b15928"
 )
+
 
 dir <- '/Users/fr7/git_repos/single_cell/experiment_4/FINAL/integrated/day3_classify'
 control <- readRDS('/Users/fr7/git_repos/single_cell/experiment_4/FINAL/integrated/control/seurat_object.rds')
 samples_directory<-'/Users/fr7/git_repos/single_cell/experiment_4/FINAL/QC/combined'
 meta_data<-read.table('/Users/fr7/git_repos/single_cell/metadata/samples.txt',header=T)
 condition<-'infected.72'
+figures_dir<-'/Users/fr7/git_repos/single_cell/figuresNov20'
 
 #find the IDs of the samples that we want
 samples<-meta_data[which(meta_data$condition == condition & meta_data$experiment == '4'),'sample_id']
@@ -97,3 +99,77 @@ marker_dots<-m$marker_dotplot(day.3,markers,dir)
 day.3<-FindVariableFeatures(day.3)
 day.3@graphs<-list()
 day.3.loom <- as.loom(day.3, filename = file.path(dir,"day.3.loom"), verbose = TRUE)
+
+fig.4a.d3 <-DimPlot(d3,reduction="umap",label=TRUE,label.size=1,repel=TRUE, cols=cols,pt.size=0.1)+
+  NoLegend() +
+  theme(axis.text=element_text(size=5), axis.title=element_text(size=5))
+
+pdf(file.path(figures_dir,"fig.4a.d3.pdf"),2.5,2.5)
+fig.4a.d3
+dev.off()
+
+F20 <-DimPlot(day.3,reduction="umap", cols=cols.2,pt.size=0.3)+
+  theme(axis.text=element_text(size=5), axis.title=element_text(size=5))
+
+leg<-get_legend(F20)
+
+pdf(file.path(figures_dir,"umap.legend.pdf"),2.5,2.8)
+as_ggplot(leg)
+dev.off()
+
+F20 <-DimPlot(day.3,reduction="umap", cols=cols.2,pt.size=0.1)+
+  theme(axis.text=element_text(size=5), axis.title=element_text(size=5))+
+  NoLegend()
+
+pdf(file.path(figures_dir,"F20.pdf"),2.5,2.5)
+F20
+dev.off()
+
+###VlnPlots for NewCells###
+new.genes<-c("Muc2", "Reg4","Ido1","Fcgbp","Clca1","Fer1l6","Zg16","Sct","Isg15","Sytl2")
+levels(d3)<-c("NewCells",levels(control))
+figs<-list()
+for (gene in new.genes){
+  fig <- VlnPlot(d3,features=gene,pt.size=0,cols=cols)+
+    theme(text = element_text(size=2),
+          axis.text.y = element_text(size=4,margin=margin(-100,0,0,0),hjust=-100),
+          axis.text.x=element_blank(),
+          legend.position = "none",
+          axis.title.x =element_blank(),
+          axis.title.y =element_blank(),
+          axis.line = element_line(size = 0.1),
+          axis.ticks=element_blank(),
+          plot.title=element_text(size=5, face="plain")
+    )
+  
+  fig$layers[[1]]$aes_params$size = 0.1
+  figs[[gene]]<-fig
+}
+
+fig.4d.d3<-plot_grid(plotlist=figs, ncol=10)
+
+pdf(file.path(figures_dir,"fig.4d.d3.pdf"),7,1)
+fig.4d.d3
+dev.off()
+
+#get legend
+
+
+#for the legend
+p<- VlnPlot(d1,features=gene,pt.size=0,cols=cols)+
+  theme(text = element_text(size=5),
+        axis.text.y = element_text(size=4,margin=margin(-100,0,0,0),hjust=-100),
+        axis.text.x=element_blank(),
+        axis.title.x =element_blank(),
+        axis.title.y =element_blank(),
+        axis.line = element_line(size = 0.1),
+        axis.ticks=element_blank(),
+        plot.title=element_text(size=5, face="plain"))
+
+
+
+leg <- get_legend(p)
+
+pdf(file.path(figures_dir,"fig.4d.legend.pdf"),1,5)
+as_ggplot(leg)
+dev.off()

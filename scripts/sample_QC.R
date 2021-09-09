@@ -31,7 +31,7 @@ args$cellranger_version<-'cellranger302'
 args$metadata<-'/Users/fr7/git_repos/single_cell/metadata/samples.txt'
 args$samples<-'/Users/fr7/git_repos/single_cell/experiment_4/samples_to_analyse.txt'
 args$results_directory<-'/Users/fr7/git_repos/single_cell/experiment_4/FINAL'
-
+figures_dir<-'/Users/fr7/git_repos/single_cell/figuresNov20'
 
 #find samples and meta data
 samples<-scan(args$samples,what=character())
@@ -56,11 +56,23 @@ seurat_objects<-lapply(samples,m$normalize_data,
 names(seurat_objects)<-samples
 
 #plot UMIs for each sample
-umi_frequency_plots<-lapply(names(seurat_objects),m$umi_frequency_plot,seurat_objects,dir,28000) #try various to get the right threshold for each sample
+umi_frequency_plots<-lapply(names(seurat_objects),m$umi_frequency_plot,seurat_objects,dir,19000) #try various to get the right threshold for each sample
+
+SF2A.UMI <- m$umi_frequency_plot("4672STDY8112878", seurat_objects, dir, 19000)
+SF2A.UMI <- SF2A.UMI + ylab("Density") + ggtitle("") + theme(axis.text=element_text(size=7), axis.title=element_text(size=9))
+pdf(file.path(figures_dir,"SF2A.UMI.pdf"), 2.5,2.5)
+print(SF2A.UMI)
+dev.off()
 
 #also plot %mito and ngenes for each sample 
 mito_frequency_plots<-lapply(names(seurat_objects),m$mito_frequency_plot,seurat_objects,dir)
 all<-m$print_combined(mito_frequency_plots,dir,'mito_frequency_plots')
+
+SF2A.MITO.PRE <- m$mito_frequency_plot("4672STDY8112878", seurat_objects, dir)
+SF2A.MITO.PRE <- SF2A.MITO.PRE + ylab("Density") + xlab("Percentage mitochondrial features") + ggtitle("") + theme(axis.text=element_text(size=7), axis.title=element_text(size=9))
+pdf(file.path(figures_dir,"SF2A.MITO.PRE.pdf"), 2.5,2.5)
+print(SF2A.MITO.PRE)
+dev.off()
 
 ngenes_plots<-lapply(names(seurat_objects),m$genes_frequency_plot,seurat_objects,dir)
 all<-m$print_combined(ngenes_plots,dir,'ngenes_plots')
@@ -110,6 +122,13 @@ all<-m$print_combined(umi_frequency_plots,dir,'UMI_frequency')
 
 mito_frequency_plots<-lapply(names(umi_filtered),m$mito_frequency_plot,umi_filtered,dir)
 all<-m$print_combined(mito_frequency_plots,dir,'mito_frequency')
+
+SF2A.MITO.POST <- m$mito_frequency_plot("4672STDY8112878", umi_filtered, dir)
+SF2A.MITO.POST <- SF2A.MITO.POST + ylab("Density") + xlab("Percentage mitochondrial features") + ggtitle("") + theme(axis.text=element_text(size=7), axis.title=element_text(size=9))
+pdf(file.path(figures_dir,"SF2A.MITO.POST.pdf"), 2.5,2.5)
+print(SF2A.MITO.POST)
+dev.off()
+
 
 genes_frequency_plots<-lapply(names(umi_filtered),m$genes_frequency_plot,umi_filtered,dir)
 all<-m$print_combined(genes_frequency_plots,dir,'genes_frequency')

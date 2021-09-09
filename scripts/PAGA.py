@@ -16,7 +16,9 @@ def pre_process(adata):
 	#find variable genes
 	sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
 	#filter to take only variable genes 
-	#adata = adata[:, adata.var.highly_variable]	
+	adata = adata[:, adata.var.highly_variable]
+    #remove genes with 0 counts	
+	#adata = adata[:, adata.X.sum(axis=0) > 0]
 	#regress out batch effects
 	sc.pp.regress_out(adata, ['orig_ident'])
 	#scale data
@@ -30,88 +32,79 @@ def pre_process(adata):
 #define marker genes for plotting
 genes=['Muc2','Aqp8','Krt20','Isg15','Reg3g','Chga','Top2a','Lgr5','Smoc2','Ascl2','Fer1l6']
 
-control = sc.read_loom("/Users/fr7/git_repos/single_cell/experiment_4/FINAL/integrated/control/control.loom", sparse=True)
-day1 = sc.read_loom("/Users/fr7/git_repos/single_cell/experiment_4/FINAL/integrated/day1_classify/day.1.loom", sparse=True)
-day3 = sc.read_loom("/Users/fr7/git_repos/single_cell/experiment_4/FINAL/integrated/day3_classify/day.3.loom", sparse=True)
+control = sc.read_loom("/Users/fr7/git_repos/single_cell/experiment_4/FINAL/merge/control.loom", sparse=True)
 
 #pre-process
 control = pre_process(control)
-day1 = pre_process(day1)
-day3 = pre_process(day3)
 
 #plots to select number of components for clustering
-sc.pl.pca_variance_ratio(control, log=True, n_pcs = 100, save = ".control.png")
-sc.pl.pca_variance_ratio(day1, log=True, n_pcs = 100, save = ".day1.png")
-sc.pl.pca_variance_ratio(day3, log=True, n_pcs = 100, save = ".day3.png")
+sc.pl.pca_variance_ratio(control, log=True, n_pcs = 100)
+
 
 #compute the neighbourhood graphs
 sc.pp.neighbors(control, n_pcs=35, n_neighbors=4) #might want to play with n_neighbours
-sc.pp.neighbors(day1, n_pcs=35, n_neighbors=4)
-sc.pp.neighbors(day3, n_pcs=35, n_neighbors=4)
 
 #plot UMAPs
 sc.tl.umap(control)
 sc.pl.umap(control, color=genes, save=".control.png")
-
-sc.tl.umap(day1)
-sc.pl.umap(day1, color=genes, save=".day1.png")
-
-sc.tl.umap(day3)
-sc.pl.umap(day3, color=genes, save=".day3.png")
-
+sc.pl.umap(control, color='ClusterName', save=".control.png")
 
 #clustering
-sc.tl.leiden(control, resolution = 1)
+sc.tl.leiden(control, resolution = 0.3)
 sc.pl.umap(control, color = ['leiden', 'ClusterName'], save = ".clusters.control.png")
 
-sc.tl.leiden(day1, resolution = 1)
-sc.pl.umap(day1, color = ['leiden', 'ClusterName'], save = ".clusters.day1.png")
-
-sc.tl.leiden(day3, resolution = 1)
-sc.pl.umap(day3, color = ['leiden', 'ClusterName'], save = ".clusters.day3.png")
 
 #denoise the graph
-#sc.tl.diffmap(control)
-#sc.pp.neighbors(control, n_neighbors=4, use_rep='X_diffmap')
-#sc.tl.draw_graph(control)
-#sc.pl.draw_graph(control, color = 'ClusterName')
+sc.tl.diffmap(control)
+sc.pp.neighbors(control, n_neighbors=4, use_rep='X_diffmap')
+sc.tl.draw_graph(control, init_pos='paga')
+sc.pl.draw_graph(control, color = 'ClusterName')
 
 #find markers
 sc.tl.rank_genes_groups(control, 'leiden', method='wilcoxon')
-sc.pl.rank_genes_groups(control, n_genes=20, sharey=False,save=".control.png")
+sc.pl.rank_genes_groups(control, n_genes=10, sharey=False,save=".control.png")
 
-sc.tl.rank_genes_groups(day1, 'leiden', method='wilcoxon')
-sc.pl.rank_genes_groups(day1, n_genes=20, sharey=False,save=".day1.png")
 
-sc.tl.rank_genes_groups(day3, 'leiden', method='wilcoxon')
-sc.pl.rank_genes_groups(day3, n_genes=20, sharey=False,save=".day3.png")
 
 #get tables of marker genes
 
 genes.append('leiden')
 genes.append('ClusterName')
 
+genes = ['Ube2c','Tubb5','Top2a','Gsdmc4','Aldoa','Gsdmc2','Krt18','Slc12a2','Gpx2','Cdkn3','Cdc20','Ccnb2','Cpn1','Tmigd1','Rbp2','Sytl2','Hepacam2','Muc2','ClusterName', 'Aqp8', 'Krt20']
+
 #run PAGA
+new_colors = np.array(control.uns['ClusterName_colors'])
+new_colors[[0]] = "#5c1a33" #DSC
+new_colors[[1]] = "#1f78b4" #Early entero.1
+new_colors[[2]] = "#006D2C" #Early entero.2
+new_colors[[3]] = "#b15928" #Ee
+new_colors[[4]] = "#6a3d9a" #Entero.AMP
+new_colors[[5]] = "#e31a1c" #Entero.Isg15
+new_colors[[6]] = "#cab2d6" #Enterocyte
+new_colors[[7]] = "#a6cee3" #G2M-Stem/TA cells
+new_colors[[8]] = "#33a02c" #Goblet
+new_colors[[9]] = "#C7E9C0" #Progenitor Entero.1
+new_colors[[10]] = "#ff7f00" #Progenitor Entero.2
+new_colors[[11]] = "#fb9a99" #S-Stem/TA cells
+new_colors[[12]] = "#fdbf6f" #Tuft
 
-sc.tl.paga(control, groups='leiden')
-sc.pl.paga(control, color=genes, threshold = 0.1, save = ".control.png")
 
-sc.tl.paga(day1, groups='leiden')
-sc.pl.paga(day1, color=genes, threshold = 0.1, save = ".day1.png")
+control.uns['ClusterName_colors'] = new_colors
 
-sc.tl.paga(day3, groups='leiden')
-sc.pl.paga(day3, color=genes, threshold = 0.1, save = ".day3.png")
+sc.tl.paga(control, groups='ClusterName')
+sc.pl.paga(control, threshold = 0.3, fontoutline=1, edge_width_scale=0.3, fontsize=4.5, save = ".control.png", frameon=False)
+
+sc.tl.umap(control, init_pos='paga', min_dist = 0.001, spread = 2 )
+sc.pl.umap(control, color=genes, save = ".control.png")
+
 
 #draw graphs
 
 sc.tl.draw_graph(control, init_pos='paga')
 sc.pl.draw_graph(control, color=genes, save = ".control.png")
 
-sc.tl.draw_graph(day1, init_pos='paga')
-sc.pl.draw_graph(day1, color=genes, save = ".day1.png")
 
-sc.tl.draw_graph(day3, init_pos='paga')
-sc.pl.draw_graph(day3, color=genes, save = ".day3.png")
 
 late_entero_markers = ['Aqp8','Rhoc','Car4',"Cpn1",'Selenop','Clca4a','Irf7','Rbp2','S100a14','Capg','Dgat2']
 sc.pl.draw_graph(control, color=late_entero_markers, save = "late_entero_markers.control.png")
@@ -125,19 +118,13 @@ sc.pl.draw_graph(control, color=goblet_markers, save = ".goblet_markers.control.
 
 #choose root cells
 
-control.uns['iroot'] = np.flatnonzero(control.obs['leiden']  == '1')[0]
-day1.uns['iroot'] = np.flatnonzero(day1.obs['leiden']  == '18')[0]
-day3.uns['iroot'] = np.flatnonzero(day3.obs['leiden']  == '22')[0]
+control.uns['iroot'] = np.flatnonzero(control.obs['leiden']  == '3')[0]
+
 
 #pseudotime
+sc.tl.diffmap(control,n_comps=35)
 sc.tl.dpt(control)
-sc.pl.draw_graph(control, color=['leiden', 'dpt_pseudotime'], legend_loc='on data', save = "dpt_pseudotime.control.png")
-
-sc.tl.dpt(day1)
-sc.pl.draw_graph(day1, color=['leiden', 'dpt_pseudotime'], legend_loc='on data', save = "dpt_pseudotime.day1.png")
-
-sc.tl.dpt(day3)
-sc.pl.draw_graph(day3, color=['leiden', 'dpt_pseudotime'], legend_loc='on data', save = "dpt_pseudotime.day3.png")
+sc.pl.umap(control, color=['dpt_pseudotime'], legend_loc='on data', save = "dpt_pseudotime.control.png")
 
 
 ####

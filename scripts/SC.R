@@ -4,7 +4,7 @@ import("utils")
 import("DESeq2")
 import("grDevices")
 import("cowplot")
-import("DoubletDecon")
+#import("DoubletDecon")
 
 evaluate<-function(text){
   x<-eval(parse(text=text))
@@ -108,7 +108,7 @@ find_regulated_genes<-function(cluster,seurat_object,data_dir,timepoint){
   x<-subset(seurat_object, idents =  cluster) 
   Idents(x)<-"infection_status"
   DefaultAssay(x) <- "RNA"
-  infection.response<-try(FindMarkers(x,ident.1="control",ident.2="infected",print.bar=FALSE),silent=TRUE)
+  infection.response<-try(FindMarkers(x,ident.1="infected",ident.2="control",print.bar=FALSE,  test.use = "bimod" ),silent=TRUE )
   if (is.data.frame(infection.response)){
    file<-paste0(data_dir,"/",timepoint,".cluster.",cluster,".regulated.tsv")
    write.table(infection.response, file = file, sep ='\t', eol = '\n') 
