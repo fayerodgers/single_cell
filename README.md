@@ -1,7 +1,18 @@
-# Single cell
+# Single cell analysis of Trichuris-infected caecum
 
-## Retrieving data
+The data analysed in this repo is described in [Duque-Correa et al., 2021, "Defining the early stages of intestinal colonisation by whipworms"](https://www.biorxiv.org/content/10.1101/2020.08.21.261586v3).
 
+The main analysis scripts are:
+
+```
+sample_QC.R (sample QC)
+merge_all.R (main single cell analysis)
+PAGA.py (trajectory analysis)
+SF3.R (subclustering of undifferentiated cells)
+SF1.R (analysis of paired bulk libraries and whole caecum infection time course)
+```
+----------
+### Retrieving data (Internal: Sanger-specific)
 
 Need a manifest with Sanger sample IDs and meta data (samples.txt)
 
@@ -92,14 +103,5 @@ done
 
 Metrics summaries are combined into a master file, cellranger_metrics.tsv.
 
-```cellranger_metrics.R``` compares the samples that have been run with both cellranger v2.1.1 and cellranger v3.0.2. Plots in QC_plots.
-
-## Seurat 
-
-To run a standard analysis (eg):
-
-```./basic_seurat.R --samples list.txt --metadata samples.txt --cellranger_version cellranger302 --results_directory dir```
-
-First run it like this with the default options, then look at the plots to decide on filtering and clustering parameters.
-
+```cellranger_metrics.R``` compares the samples that have been run with both cellranger v2.1.1 and cellranger v3.0.2. 
 
