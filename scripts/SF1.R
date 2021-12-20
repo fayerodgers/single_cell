@@ -312,18 +312,18 @@ go.72.text<-m$write_results_text(go.72.text,files_dir,"SFile2.3.tsv")
 ### GO plot - SF1A ###
 
 # paths
-#d1.go<-read.table('/Users/fr7/git_repos/single_cell/experiment_4/bulk_libraries/time.status.24h_control.24h_infected.bulk.sort/GO.BP_results.tsv',header=T, stringsAsFactors = FALSE)
-#d3.go<-read.table('/Users/fr7/git_repos/single_cell/experiment_4/bulk_libraries/time.status.72h_control.72h_infected.bulk.sort/GO.BP_results.tsv',header=T, stringsAsFactors = FALSE)
-#whole.go<-read.table('/Users/fr7/timecourse/kallisto_analysis/as_time_course/GO.BP_results.tsv',header=T, stringsAsFactors = FALSE)
+d1.go<-read.table('/Users/fr7/git_repos/single_cell/experiment_4/bulk_libraries/time.status.24h_control.24h_infected.bulk.sort/GO.BP_results.tsv',header=T, stringsAsFactors = FALSE)
+d3.go<-read.table('/Users/fr7/git_repos/single_cell/experiment_4/bulk_libraries/time.status.72h_control.72h_infected.bulk.sort/GO.BP_results.tsv',header=T, stringsAsFactors = FALSE)
+whole.go<-read.table('/Users/fr7/timecourse/kallisto_analysis/as_time_course/GO.BP_results.tsv',header=T, stringsAsFactors = FALSE)
 
 d1.go<-go.24
 d3.go<-go.72
 whole.go<-go
 
 # add new column for adjusted p val
-#d1.go$p.adjust <- p.adjust(d1.go$over_represented_pvalue, method = "BH")
-#d3.go$p.adjust <- p.adjust(d3.go$over_represented_pvalue, method = "BH")
-#whole.go$p.adjust <- p.adjust(whole.go$over_represented_pvalue, method = "BH")
+d1.go$p.adjust <- p.adjust(d1.go$over_represented_pvalue, method = "BH")
+d3.go$p.adjust <- p.adjust(d3.go$over_represented_pvalue, method = "BH")
+whole.go$p.adjust <- p.adjust(whole.go$over_represented_pvalue, method = "BH")
 
 # define GO terms to plot
 
@@ -394,17 +394,17 @@ SF1A<-ggplot(go.df,x=time,y=description)+
                        labels = c("< 0.0001","> 0.05"),
                        guide = guide_colourbar())+
   scale_size_continuous(name="Number of\ngenes", range = c(0.1,2), breaks = c(5,100,200))+
-  theme(text = element_text(size=5),
-        axis.text.x=element_text(size=4, angle=45, hjust = 1),
-        legend.title = element_text(size = 4), 
-        legend.text = element_text(size = 4),
+  theme(text = element_text(size=8),
+        axis.text.x=element_text(size=6, angle=45, hjust = 1),
+        legend.title = element_text(size = 6), 
+        legend.text = element_text(size = 6),
         legend.margin=margin(0,0,0,0), 
-        legend.box.margin=margin(-10,-10,-10,-10) )+
+        legend.box.margin=margin(-10,-5,-10,-10) )+
   labs(x=NULL,y=NULL)+
   guides(color = guide_colourbar(barwidth = 0.5, barheight = 2), 
          size = guide_legend(keywidth = 0.5, keyheight = 0.5))
 
-pdf(file.path(figures_dir,'SF1A.pdf'),2.5,1.8)
+pdf(file.path(figures_dir,'SF1A.pdf'),3,2)
 print(SF1A)
 dev.off()
 

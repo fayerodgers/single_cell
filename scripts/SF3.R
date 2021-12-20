@@ -33,7 +33,7 @@ undiff <- subset(all.samples, idents = c("Und.1","Und.2","Und.3"))
 undiff <- m$normalize_and_run_pca(undiff,40,dir)
 undiff <- m$do_clustering(undiff,30,resolution=0.4,min.dist = 0.05)
 
-#undiff.control <- subset(undiff,subset = condition == "Control")
+undiff.control <- subset(undiff,subset = condition == "Control")
 #undiff.markers<-m$find_all_markers(undiff.control,undiff_dir)
 
 new.undiff.ids <- list()
@@ -41,10 +41,10 @@ new.undiff.ids[["0"]] <- "S-Stem/TA cells"
 new.undiff.ids[["4"]] <- "S-Stem/TA cells"
 new.undiff.ids[["1"]] <- "G2M-Stem/TA cells"
 new.undiff.ids[["3"]] <- "G2M-Stem/TA cells"
-new.undiff.ids[["2"]] <- "Progenitor Entero.1"
-new.undiff.ids[["7"]] <- "Progenitor Entero.1"
-new.undiff.ids[["5"]] <- "Progenitor Entero.2"
-new.undiff.ids[["6"]] <- "DSC"
+new.undiff.ids[["2"]] <- "Progenitor entero.1"
+new.undiff.ids[["7"]] <- "Progenitor entero.1"
+new.undiff.ids[["5"]] <- "Progenitor entero.2"
+new.undiff.ids[["6"]] <- "Deep secretory cells"
 undiff <- RenameIdents(undiff,new.undiff.ids)
 
 # split UMAP of these cells
@@ -52,9 +52,9 @@ undiff <- RenameIdents(undiff,new.undiff.ids)
 cols.undiff<-c(
   "G2M-Stem/TA cells"               =  "#a6cee3",
   "S-Stem/TA cells"                 =  "#fb9a99",
-  "Progenitor Entero.1"             =  "#C7E9C0",
-  "Progenitor Entero.2"             =  "#006D2C",
-  "DSC"                             =  "#5c1a33"
+  "Progenitor entero.1"             =  "#C7E9C0",
+  "Progenitor entero.2"             =  "#006D2C",
+  "Deep secretory cells"                             =  "#5c1a33"
 )
 
 cols <- c(
@@ -128,6 +128,31 @@ pdf(file.path(figures_dir,"SF3A.genes.2.pdf"),15,12)
 print(SF3A.fig)
 dev.off()
 
+
+# for the rebuttal
+
+UMAP.lgr5 <- FeaturePlot(undiff.control,features = "Lgr5", pt.size = 0.05, cols = c('grey',"#A50026"))
+UMAP.lgr5 <- add_formatting(UMAP.lgr5)
+pdf(file.path(figures_dir,"UMAP.Lgr5.pdf"),5,5)
+print(UMAP.lgr5)
+dev.off()
+
+genes_to_plot_3 <- c("Ascl2", "Mki67", "Hmgb2", "Car1", "Muc2", "Reg4")
+SF3A.genes.3 <- FeaturePlot(undiff.control,features = genes_to_plot_3, pt.size = 0.05, cols = c('grey',"#A50026"), combine = FALSE)
+
+SF3A.genes.3.fig <- lapply(SF3A.genes.3,add_formatting)
+SF3A.fig.3 <- plot_grid(plotlist=SF3A.genes.3.fig, ncol = 3)
+
+pdf(file.path(figures_dir,"SF3A.genes.3.pdf"),10,5)
+print(SF3A.fig.3)
+dev.off()
+
+# stacked violin
+# function from merge_all.R
+SF3A.vln <- StackedVlnPlot(obj = undiff.control, features = genes_to_plot_3, cols = cols.all)
+pdf(file.path(figures_dir,"SF3A.vln.pdf"),3,7)
+print(SF3A.vln)
+dev.off()
 
 
 markers<-m$find_all_markers(undiff.control,dir)
@@ -277,3 +302,5 @@ theme(axis.text=element_text(size=7), axis.title=element_text(size=7), strip.tex
 
 markers.test<-m$find_all_markers(test,dir)
 markers.test<-markers.test[which(markers.test$p_val_adj < 0.05 ),]
+
+

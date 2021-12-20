@@ -106,7 +106,7 @@ cols <- c(
   "Entero.AMP"             =  "#6a3d9a",
   "Goblet"                =  "#33a02c",
   "Tuft"                  =  "#fdbf6f",
-  "Ee"                    =  "#b15928"
+  "Enteroendocrine"                    =  "#b15928"
 )
 
 F1B <-DimPlot(all.samples,reduction="umap", cols=cols,pt.size=0.3)+
@@ -273,6 +273,8 @@ for (cluster in clusters){
   markers_to_plot<-c(markers_to_plot, x[0:5],y)
 }
 markers_to_plot<-unique(markers_to_plot)
+
+
 cols.2<-rev(brewer.pal(n=11,name="RdYlBu"))
 
 F1C <- DotPlot(all.samples, features = rev(markers_to_plot), dot.scale = 4) +
@@ -291,7 +293,7 @@ F1C <- DotPlot(all.samples, features = rev(markers_to_plot), dot.scale = 4) +
         scale_size_continuous(name = "Percentage of cells\nexpressing marker",range = c(0.1,1.5))
 
 
-pdf(file.path(figures_dir,"F1C.pdf"),10,2.5)
+pdf(file.path(figures_dir,"F1C.car.pdf"),10,2.5)
 print(F1C)
 dev.off()
 
@@ -303,6 +305,7 @@ proportions.condition<-merge(proportions.condition,meta_data,by.x = "sample",by.
 # change to nice label names
 proportions.condition$condition <- revalue(proportions.condition$condition,c("control.24" = "C", "infected.24" = "D1", "control.72" = "C", "infected.72" = "D3"))
 proportions.condition$condition<-as.character(proportions.condition$condition)
+proportions.condition$celltype <- factor(proportions.condition$celltype, levels = levels(all.samples))
 
 # Not used but for our info
 F1D.box<-ggplot(proportions.condition,aes(condition,proportion,fill=celltype)) +
@@ -353,6 +356,40 @@ F1D<-ggplot(all.means,aes(condition,mean,fill=celltype)) +
 
 pdf(file.path(figures_dir,"F1D.pdf"),10,2)
 print(F1D)
+dev.off()
+
+colnames(all.means) <- c("celltype", "condition", "proportion", "sd")
+F1D.dots<-ggplot(proportions.condition,aes(condition,proportion, fill=celltype)) +
+  geom_point(size = 1)+ 
+  geom_bar(data = all.means, stat = "identity", alpha  = 0.6)+
+  scale_fill_manual(values=cols)+
+  theme(axis.text.x = element_text()) + 
+  facet_wrap(~celltype, ncol=11)+
+  NoLegend()+
+  ylab("Proportion of cells")+
+  xlab("")+
+  ylim(0,0.6)
+
+
+pdf(file.path(figures_dir,"F1D.dots.pdf"),10,2)
+print(F1D.dots)
+dev.off()
+
+F1D.dots.bars<-ggplot(proportions.condition,aes(condition,proportion, fill=celltype)) +
+  geom_point(size = 1)+ 
+  geom_bar(data = all.means, stat = "identity", alpha  = 0.6)+
+  geom_errorbar(data = all.means, aes(ymin = proportion - sd, ymax = proportion + sd), width=0.2)+
+  scale_fill_manual(values=cols)+
+  theme(axis.text.x = element_text()) + 
+  facet_wrap(~celltype, ncol=11)+
+  NoLegend()+
+  ylab("Proportion of cells")+
+  xlab("")+
+  ylim(0,0.6)
+
+
+pdf(file.path(figures_dir,"F1D.dots.bars.pdf"),10,2)
+print(F1D.dots.bars)
 dev.off()
 
 ### t tests of proportions ###
@@ -417,7 +454,7 @@ modify_vlnplot<- function(obj,
           axis.text.x = element_blank(), 
           axis.ticks.x = element_blank(), 
           axis.title.x = element_blank(),
-          axis.title.y = element_text(size = 7, angle = 90), 
+          axis.title.y = element_text(size = 7, angle = 90, face ="italic"), 
           axis.text.y = element_text(size = 5), 
           plot.margin = plot.margin,
           plot.title = element_blank(),
@@ -612,6 +649,43 @@ dev.off()
 pdf("Irf7.pdf", 3, 3)
 FeaturePlot(d3.samples,features = c("Irf7"), pt.size = 0.1, cols = c('grey',"#A50026"))+
   theme(axis.text=element_text(size=9), axis.title=element_text(size=9), plot.title = element_text(face = "italic", size = 13, hjust = -0.01))
+dev.off()
+
+### response to reviewers ###
+
+# replace EE with fullname
+new.ids <- levels(all.samples)
+names(new.ids) <- levels(all.samples)
+new.ids[["Ee"]] <- "Enteroendocrine"
+all.samples <- RenameIdents(all.samples,new.ids)
+
+# Violin plots of control cells
+all.samples <- readRDS(file.path("/Users/fr7/git_repos/single_cell/experiment_4/FINAL/merge/undiff",'seurat_object.rds'))
+control.samples<-subset(all.samples, subset = infection_status == "control")
+
+genes_to_plot <- c("Ascl2", "Mki67", "Krt20", "Car1", "Muc2", "Reg4")
+Fig <- StackedVlnPlot(obj = control.samples, features = genes_to_plot, col = cols.all)
+pdf("vln.markers.pdf", 4,7)
+print(Fig)
+dev.off()
+
+# UMAPs
+umap.3 <- FeaturePlot(control.samples,features = genes_to_plot, pt.size = 0.05, cols = c('grey',"#A50026"), combine = FALSE)
+
+umap.3.fig <- lapply(umap.3,add_formatting)
+Fig <- plot_grid(plotlist=umap.3.fig, ncol = 3)
+
+pdf(file.path(figures_dir,"umap.all.pdf"),10,5)
+print(Fig)
+dev.off()
+
+
+umap_lgr5 <- FeaturePlot(control.samples,features = c("Lgr5","Olfm4","Lyz1"), pt.size = 0.05, cols = c('grey',"#A50026"), combine=FALSE)
+umap.lgr5.fig <- lapply(umap_lgr5,add_formatting)
+Fig <- plot_grid(plotlist=umap.lgr5.fig, ncol = 3)
+
+pdf("umap.lgr5.pdf",10,3)
+print(Fig)
 dev.off()
 
 
