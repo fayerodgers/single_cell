@@ -1,7 +1,9 @@
 #!/usr/bin/env Rscript
-#.libPaths("/nfs/users/nfs_f/fr7/anaconda2/envs/r_env/lib/R/library")
+
+# edit as approprite
 m <- modules::use("/Users/fr7/git_repos/single_cell/scripts/SC.R")
 mrna <- modules::use("~/git_repos/Trichuris_transwells/rnaseq.R")
+
 library(argparse)
 library(Seurat)
 library(ggplot2)
@@ -28,7 +30,7 @@ parser$add_argument("--condition", help="Integrate and cluster samples from this
 
 args <- parser$parse_args()
 
-#for now
+# edit as appropriate
 args$results_directory<-'/Users/fr7/git_repos/single_cell/experiment_4/FINAL/merge'
 args$samples_directory<-'/Users/fr7/git_repos/single_cell/experiment_4/FINAL/QC/combined'
 args$metadata<-'/Users/fr7/git_repos/single_cell/metadata/samples.txt'
@@ -40,7 +42,7 @@ dir <- args$results_directory
 samples_dir <- args$samples_directory
 meta_data<-read.table(args$metadata,header=T)
 
-#find the IDs of the samples that we want
+# find the IDs of the samples that we want
 samples<-meta_data[which(meta_data$experiment == '4'),'sample_id']
 
 #load seurat objects
@@ -93,7 +95,7 @@ control.samples<-subset(all.samples, subset = infection_status == "control")
 markers<-m$find_all_markers(control.samples,dir)
 
 
-### Fig1B - UMAP ###
+### UMAP ###
 
 cols <- c(
   "Und.1"                 =  "#a6cee3",
@@ -145,7 +147,7 @@ pdf(file.path(figures_dir,"F1B.split.pdf"),7.5,2.5)
 print(F1B.split)
 dev.off()
 
-### SF2E - split UMAP ###
+### split UMAP ###
 Idents(all.samples) <- all.samples$infection_status
 infection_status.caps<-list()
 infection_status.caps[["control"]] <- "Control"
@@ -173,7 +175,7 @@ print(SF2E.d3)
 dev.off()
 
 
-### Fig SF2B/C ###
+### UMAP by batch ###
 
 Idents(all.samples) <- all.samples$orig.ident
 new.mouse.ids<-list()
@@ -245,7 +247,7 @@ print(SF2D)
 dev.off()
 
 
-### Fig 1C - marker dot plot ### 
+### Marker dot plot ### 
 
 # maybe read in markers
 # markers<-read.table(file.path(dir,"markers.txt"),stringsAsFactors = FALSE)
@@ -255,7 +257,7 @@ markers.file<-markers[which(markers$p_val_adj < 0.05 ),]
 text<-"Cluster-defining marker genes for caecum IEC populations (control cells, Wilcox test)"
 markers.file <- markers.file[,c("cluster","gene","pct.1","pct.2","avg_logFC","p_val","p_val_adj")]
 colnames(markers.file) <- c("Cluster","Gene","Proportion of cells in cluster expressing marker", "Proportion of all other cells expressing marker", "Average log FoldChange", "p value", "Adjusted p value")
-markers.file.text<-mrna$text_matrix(markers.file,text)
+markers.file.text<-$text_matrix(markers.file,text)
 markers.file.text<-mrna$write_results_text(markers.file.text,files_dir,"SFile3.1.tsv")
 
 # Order by logFC
@@ -297,7 +299,7 @@ pdf(file.path(figures_dir,"F1C.car.pdf"),10,2.5)
 print(F1C)
 dev.off()
 
-### F1D - quantify cluster sizes - C, D1, D3 ###
+### Quantify cluster sizes - C, D1, D3 ###
 proportions.condition<-as.data.frame(prop.table(table(Idents(all.samples), all.samples$orig.ident),margin=2), stringsAsFactors = FALSE)
 colnames(proportions.condition) <- c("celltype","sample","proportion")
 proportions.condition<-merge(proportions.condition,meta_data,by.x = "sample",by.y="sample_id")
@@ -434,8 +436,6 @@ violin_genes<-c(
   "Reg3b"
 )
 
-
-
 ### stacked violin plot code from https://rpubs.com/DarrenVan/628853 ###
 
 ## remove the x-axis text and tick
@@ -501,7 +501,7 @@ pdf(file.path(figures_dir,"F1D.pdf"),2,6)
 print(F1D)
 dev.off()
 
-### SF4A - expression of alarmins ###
+### Expression of alarmins ###
 
 cols.heat <- colorRampPalette(colors = c("#313695","#FFFFBF","#A50026"))(200)
 SF4A <- FeaturePlot(all.samples,features = c("Il33","Il25","Tslp","Ifna1","Ifnb1","Ifng","Ifnl2","Ifnl3"),split.by = "condition", pt.size = 0.1, cols = c('grey',"#A50026"))+
@@ -581,7 +581,7 @@ pdf(file.path(figures_dir,"SF4B.5.pdf"),16,20)
 print(SF4B.5)
 dev.off()
 
-### GO enrichment of cluster marker genes SF2G ###
+### GO enrichment of cluster marker genes ###
 
 # clusterprofiler - first convert gene symbols to Entrez IDs
 
