@@ -14,7 +14,7 @@ library("GO.db")
 library("msigdbr")
 library("reshape2")
 
-### paths and metadata ###
+### paths and metadata - edit as appropriate ###
 maindir_whole<-'/Users/fr7/timecourse/kallisto_analysis'
 metadata_whole<-read.table(file.path(maindir_whole,'metadata.txt'),header=T,stringsAsFactors = TRUE)
 metadata_whole$time<-as.factor(metadata_whole$time)
@@ -511,7 +511,7 @@ pheatmap(log((fpkms + 1), base=2),
 )
 dev.off()
 
-## alternative version of SF4C for the Wellcome grant response ##
+## alternative version of SF4C ##
 gene_names <- c("Il33","Tslp","Il25","Ifna1","Ifnb1")
 genes <- m$genename_to_ensembl(gene_names)
 fpkms<-fpkm(dds.whole)[genes$ensembl_gene_id,]
@@ -606,7 +606,7 @@ pheatmap(log((fpkms.epi + 1), base=2),
 )
 dev.off()
 
-## Alternative version of SF1C for Wellcome grant response ##
+## Alternative version of SF1C  ##
 
 genes<-c("Isg15", "Ifit1", "Ifit1bl1", "Ang4", "Ddx60", "Ifit3", "Ifi27l2a", "Oasl2", "Usp18", "Irf7")
 genes.72 <- m$genename_to_ensembl(genes)
